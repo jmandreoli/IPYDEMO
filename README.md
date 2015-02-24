@@ -1,3 +1,6 @@
 # IPYDEMO
 IPython demo
-test change
+============
+
+This package proposes various ipython demos based on IPython notebooks.
+

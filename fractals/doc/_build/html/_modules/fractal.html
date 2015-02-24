@@ -1,0 +1,260 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>fractal &mdash; Fractal animation 0.9 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '0.9',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="Fractal animation 0.9 documentation" href="../index.html" />
+    <link rel="up" title="Module code" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Fractal animation 0.9 documentation</a> &raquo;</li>
+          <li><a href="index.html" accesskey="U">Module code</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <h1>Source code for fractal</h1><div class="highlight"><pre>
+<span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="n">__name__</span><span class="p">)</span>
+
+<span class="c">#----------------------------------------------------------------------------------------------------</span>
+<div class="viewcode-block" id="FractalAnimation"><a class="viewcode-back" href="../fractal.html#fractal.FractalAnimation">[docs]</a><span class="k">def</span> <span class="nf">FractalAnimation</span><span class="p">(</span><span class="n">ax</span><span class="p">,</span><span class="n">func</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="n">frames</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span><span class="o">**</span><span class="n">ka</span><span class="p">):</span>
+<span class="c">#----------------------------------------------------------------------------------------------------</span>
+  <span class="sd">r&quot;&quot;&quot;</span>
+<span class="sd">:param ax: matplotlib axes on which to display</span>
+<span class="sd">:type ax: :class:`matplotlib.Axes` instance</span>
+<span class="sd">:param func: a display function (see below)</span>
+<span class="sd">:param frames: a generator function (see below)</span>
+<span class="sd">:param ka: passed to :func:`matplotlib.FuncAnimation`</span>
+
+<span class="sd">Displays an object (target, typically a fractal) allowing navigation through multiple levels of zooming. For a given zooming level, the display is assumed dynamic, starting from a coarse precision level and refining progressively over time (typical of fractals).</span>
+
+<span class="sd">- Function *frames* is passed a boundary specification and is expected to return an iterator of frame informations needed to draw the subset of the target within this boundary at successive levels of precision. The iterator is enumerated at regular intervals in the animation as long as the zooming level is not changed, and resumed whenever the same zooming level is reselected. A boundary spec is a pair of pairs (the x-bounds and the y-bounds in data coordinates).</span>
+
+<span class="sd">- Function *func* is passed a frame information (from the iterator returned by *frame*\) and a boolean flag, and is expected to draw the frame on *ax*\. It is called at each new precision level with the flag set to :const:`False`, and when the zooming level changes with the flag is set to :const:`True`.</span>
+
+<span class="sd">  &quot;&quot;&quot;</span>
+  <span class="kn">from</span> <span class="nn">matplotlib.animation</span> <span class="kn">import</span> <span class="n">FuncAnimation</span>
+  <span class="k">def</span> <span class="nf">forever</span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="n">seq</span><span class="p">):</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">v</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+      <span class="k">try</span><span class="p">:</span> <span class="n">v</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">seq</span><span class="p">);</span> <span class="n">n</span> <span class="o">+=</span> <span class="mi">1</span>
+      <span class="k">except</span> <span class="ne">StopIteration</span><span class="p">:</span> <span class="k">pass</span>
+      <span class="k">yield</span> <span class="n">k</span><span class="p">,</span><span class="n">n</span><span class="p">,</span><span class="n">v</span>
+  <span class="k">def</span> <span class="nf">Func</span><span class="p">(</span><span class="n">args</span><span class="p">,</span><span class="n">cur</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">]):</span>
+    <span class="k">if</span> <span class="n">args</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span> <span class="p">(</span><span class="n">selection</span><span class="o">.</span><span class="n">rec</span><span class="p">,)</span>
+    <span class="k">else</span><span class="p">:</span>
+      <span class="n">k</span><span class="p">,</span><span class="n">n</span><span class="p">,</span><span class="n">v</span> <span class="o">=</span> <span class="n">args</span>
+      <span class="k">if</span> <span class="n">k</span><span class="o">!=</span> <span class="n">cur</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="n">cur</span><span class="p">[:]</span> <span class="o">=</span> <span class="n">k</span><span class="p">,</span><span class="n">n</span><span class="p">;</span> <span class="n">i</span> <span class="o">=</span> <span class="bp">True</span>
+      <span class="k">elif</span> <span class="n">n</span><span class="o">!=</span> <span class="n">cur</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span> <span class="n">cur</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span> <span class="o">=</span> <span class="bp">False</span>
+      <span class="k">else</span><span class="p">:</span> <span class="k">return</span><span class="p">()</span>
+      <span class="n">txt</span><span class="o">.</span><span class="n">set_text</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">n</span><span class="p">))</span>
+      <span class="k">return</span> <span class="p">(</span><span class="n">selection</span><span class="o">.</span><span class="n">rec</span><span class="p">,</span><span class="n">txt</span><span class="p">)</span><span class="o">+</span><span class="n">func</span><span class="p">(</span><span class="n">v</span><span class="p">,</span><span class="n">interrupt</span><span class="o">=</span><span class="n">i</span><span class="p">)</span>
+  <span class="k">def</span> <span class="nf">Frames</span><span class="p">():</span>
+    <span class="k">def</span> <span class="nf">gc</span><span class="p">(</span><span class="n">k</span><span class="p">):</span> <span class="k">del</span> <span class="n">stack</span><span class="p">[</span><span class="n">k</span><span class="p">:]</span>
+    <span class="n">selection</span><span class="o">.</span><span class="n">gc</span> <span class="o">=</span> <span class="n">gc</span>
+    <span class="n">stack</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+      <span class="k">if</span> <span class="n">selection</span><span class="o">.</span><span class="n">bbox</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span>
+        <span class="n">k</span><span class="p">,</span><span class="n">K</span> <span class="o">=</span> <span class="n">selection</span><span class="o">.</span><span class="n">level</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">stack</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">K</span><span class="o">&lt;</span><span class="n">k</span><span class="p">:</span>
+          <span class="k">assert</span> <span class="n">k</span><span class="o">==</span><span class="n">K</span><span class="o">+</span><span class="mi">1</span>
+          <span class="n">seq</span> <span class="o">=</span> <span class="n">forever</span><span class="p">(</span><span class="n">K</span><span class="p">,</span><span class="n">frames</span><span class="p">(</span><span class="n">selection</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="n">K</span><span class="p">]))</span>
+          <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span> <span class="n">seq</span> <span class="o">=</span> <span class="n">stack</span><span class="p">[</span><span class="n">k</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">yield</span> <span class="nb">next</span><span class="p">(</span><span class="n">seq</span><span class="p">)</span>
+      <span class="k">else</span><span class="p">:</span>
+        <span class="k">yield</span> <span class="bp">None</span>
+  <span class="n">selection</span> <span class="o">=</span> <span class="n">Selection</span><span class="p">(</span><span class="n">ax</span><span class="p">)</span>
+  <span class="n">txt</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="o">.</span><span class="mo">001</span><span class="p">,</span><span class="o">.</span><span class="mi">999</span><span class="p">,</span><span class="s">&#39;&#39;</span><span class="p">,</span><span class="n">ha</span><span class="o">=</span><span class="s">&#39;left&#39;</span><span class="p">,</span><span class="n">va</span><span class="o">=</span><span class="s">&#39;top&#39;</span><span class="p">,</span><span class="n">backgroundcolor</span><span class="o">=</span><span class="s">&#39;w&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s">&#39;k&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="s">&#39;xx-small&#39;</span><span class="p">,</span><span class="n">transform</span><span class="o">=</span><span class="n">ax</span><span class="o">.</span><span class="n">transAxes</span><span class="p">)</span>
+  <span class="k">return</span> <span class="n">FuncAnimation</span><span class="p">(</span><span class="n">ax</span><span class="o">.</span><span class="n">figure</span><span class="p">,</span><span class="n">func</span><span class="o">=</span><span class="n">Func</span><span class="p">,</span><span class="n">frames</span><span class="o">=</span><span class="n">Frames</span><span class="p">,</span><span class="o">**</span><span class="n">ka</span><span class="p">)</span>
+
+<span class="c">#----------------------------------------------------------------------------------------------------</span></div>
+<div class="viewcode-block" id="Selection"><a class="viewcode-back" href="../fractal.html#fractal.Selection">[docs]</a><span class="k">class</span> <span class="nc">Selection</span><span class="p">:</span>
+<span class="c">#----------------------------------------------------------------------------------------------------</span>
+  <span class="sd">r&quot;&quot;&quot;</span>
+<span class="sd">Objects of this class manage a stack of zoom levels on some axes. A zoom level is defined by a boundary specification (a pair of pairs: x-bounds and y-bounds in data coordinates). A new zoom level is created on top of the current level in the stack by user selection of a rectangle on the axes, using the mouse. Pressing the arrow keys on the keyboard allows navigation through the zoom level stack (up or right arrow to go up the stack, down or left arrow to go down).</span>
+
+<span class="sd">Attributes:</span>
+
+<span class="sd">.. attribute:: rec</span>
+
+<span class="sd">   The rectangle for zoom level selection. Visible at all levels of zooming except the top one, where it is visible only when selection is ongoing.</span>
+
+<span class="sd">.. attribute:: txt</span>
+
+<span class="sd">   A text widget to display the zoom level.</span>
+
+<span class="sd">.. attribute:: stack</span>
+
+<span class="sd">   The stack of boundary specifications for each zoom level. At initialisation, the boundary of the the axes are used.</span>
+
+<span class="sd">.. attribute:: level</span>
+
+<span class="sd">   The current zoom level, as an index in the :attr:`stack`\.</span>
+
+<span class="sd">.. attribute:: bbox</span>
+
+<span class="sd">   Set to :const:`None` when no selection is active, otherwise, set to the current selection.</span>
+
+<span class="sd">.. attribute:: gc</span>
+
+<span class="sd">   A callback function with one argument, which is called with each newly created zoom level (its idex is passed as argument). This allows for garbage collection of the zoom levels above the current one, which are discarded by the newly created one.</span>
+
+<span class="sd">Methods:</span>
+<span class="sd">  &quot;&quot;&quot;</span>
+
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ax</span><span class="p">,</span><span class="n">gc</span><span class="o">=</span><span class="p">(</span><span class="k">lambda</span> <span class="n">l</span><span class="p">:</span> <span class="bp">None</span><span class="p">),</span><span class="o">**</span><span class="n">ka</span><span class="p">):</span>
+    <span class="kn">from</span> <span class="nn">matplotlib.patches</span> <span class="kn">import</span> <span class="n">Rectangle</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">figure</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">mpl_connect</span><span class="p">(</span><span class="s">&#39;button_press_event&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">start</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">figure</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">mpl_connect</span><span class="p">(</span><span class="s">&#39;button_release_event&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">stop</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">figure</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">mpl_connect</span><span class="p">(</span><span class="s">&#39;motion_notify_event&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">updt</span><span class="p">)</span>
+    <span class="n">ax</span><span class="o">.</span><span class="n">figure</span><span class="o">.</span><span class="n">canvas</span><span class="o">.</span><span class="n">mpl_connect</span><span class="p">(</span><span class="s">&#39;key_press_event&#39;</span><span class="p">,</span><span class="bp">self</span><span class="o">.</span><span class="n">xlevel</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">rec</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span><span class="n">Rectangle</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span><span class="n">width</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">height</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span><span class="n">alpha</span><span class="o">=.</span><span class="mi">4</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s">&#39;k&#39;</span><span class="p">,</span><span class="n">visible</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span><span class="o">**</span><span class="n">ka</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">txt</span> <span class="o">=</span> <span class="n">ax</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="o">.</span><span class="mi">999</span><span class="p">,</span><span class="o">.</span><span class="mi">999</span><span class="p">,</span><span class="s">&#39;1&#39;</span><span class="p">,</span><span class="n">ha</span><span class="o">=</span><span class="s">&#39;right&#39;</span><span class="p">,</span><span class="n">va</span><span class="o">=</span><span class="s">&#39;top&#39;</span><span class="p">,</span><span class="n">backgroundcolor</span><span class="o">=</span><span class="s">&#39;w&#39;</span><span class="p">,</span><span class="n">color</span><span class="o">=</span><span class="s">&#39;k&#39;</span><span class="p">,</span><span class="n">fontsize</span><span class="o">=</span><span class="s">&#39;xx-small&#39;</span><span class="p">,</span><span class="n">transform</span><span class="o">=</span><span class="n">ax</span><span class="o">.</span><span class="n">transAxes</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stack</span> <span class="o">=</span> <span class="p">[(</span><span class="n">ax</span><span class="o">.</span><span class="n">get_xlim</span><span class="p">(),</span><span class="n">ax</span><span class="o">.</span><span class="n">get_ylim</span><span class="p">())]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bbox</span> <span class="o">=</span> <span class="bp">None</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gc</span> <span class="o">=</span> <span class="n">gc</span>
+
+<div class="viewcode-block" id="Selection.start"><a class="viewcode-back" href="../fractal.html#fractal.Selection.start">[docs]</a>  <span class="k">def</span> <span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ev</span><span class="p">):</span>
+    <span class="sd">r&quot;&quot;&quot;</span>
+<span class="sd">:param ev: a GUI event</span>
+<span class="sd">:type ev: :class:`matplotlib.Event` instance</span>
+
+<span class="sd">Initiates a rectangle capture when button 1 is pressed.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">ev</span><span class="o">.</span><span class="n">inaxes</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">axes</span> <span class="ow">or</span> <span class="n">ev</span><span class="o">.</span><span class="n">button</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">bbox</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="n">ev</span><span class="o">.</span><span class="n">xdata</span><span class="p">,</span> <span class="n">ev</span><span class="o">.</span><span class="n">ydata</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bbox</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="p">,</span><span class="n">p</span><span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">set_xy</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+</div>
+<div class="viewcode-block" id="Selection.updt"><a class="viewcode-back" href="../fractal.html#fractal.Selection.updt">[docs]</a>  <span class="k">def</span> <span class="nf">updt</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ev</span><span class="p">):</span>
+    <span class="sd">r&quot;&quot;&quot;</span>
+<span class="sd">:param ev: a GUI event</span>
+<span class="sd">:type ev: :class:`matplotlib.Event` instance</span>
+
+<span class="sd">Updates the rectangle capture while button 1 is pressed and the mouse moves around.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">ev</span><span class="o">.</span><span class="n">inaxes</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">axes</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">bbox</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span>
+    <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bbox</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">p1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bbox</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">ev</span><span class="o">.</span><span class="n">xdata</span><span class="p">,</span> <span class="n">ev</span><span class="o">.</span><span class="n">ydata</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">set_width</span><span class="p">(</span><span class="n">p1</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">-</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">set_height</span><span class="p">(</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">-</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+</div>
+<div class="viewcode-block" id="Selection.stop"><a class="viewcode-back" href="../fractal.html#fractal.Selection.stop">[docs]</a>  <span class="k">def</span> <span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ev</span><span class="p">):</span>
+    <span class="sd">r&quot;&quot;&quot;</span>
+<span class="sd">:param ev: a GUI event</span>
+<span class="sd">:type ev: :class:`matplotlib.Event` instance</span>
+
+<span class="sd">Finalises the rectangle capture when button 1 is released.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">ev</span><span class="o">.</span><span class="n">inaxes</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">axes</span> <span class="ow">or</span> <span class="n">ev</span><span class="o">.</span><span class="n">button</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">bbox</span> <span class="ow">is</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span>
+    <span class="n">p</span><span class="p">,</span><span class="n">p1</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bbox</span>
+    <span class="n">bounds</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">((</span><span class="n">p</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span><span class="n">p1</span><span class="p">[</span><span class="mi">0</span><span class="p">]))),</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">sorted</span><span class="p">((</span><span class="n">p</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span><span class="n">p1</span><span class="p">[</span><span class="mi">1</span><span class="p">])))</span>
+    <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">:]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">gc</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bounds</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">txt</span><span class="o">.</span><span class="n">set_text</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">))</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">bbox</span> <span class="o">=</span> <span class="bp">None</span>
+</div>
+<div class="viewcode-block" id="Selection.xlevel"><a class="viewcode-back" href="../fractal.html#fractal.Selection.xlevel">[docs]</a>  <span class="k">def</span> <span class="nf">xlevel</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span><span class="n">ev</span><span class="p">):</span>
+    <span class="sd">r&quot;&quot;&quot;</span>
+<span class="sd">:param ev: a GUI event</span>
+<span class="sd">:type ev: :class:`matplotlib.Event` instance</span>
+
+<span class="sd">Navigates across the zoom levels.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bbox</span> <span class="ow">is</span> <span class="ow">not</span> <span class="bp">None</span><span class="p">:</span> <span class="k">return</span>
+    <span class="k">if</span> <span class="n">ev</span><span class="o">.</span><span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;up&#39;</span><span class="p">,</span><span class="s">&#39;right&#39;</span><span class="p">):</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="o">&lt;</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stack</span><span class="p">):</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">+=</span> <span class="mi">1</span>
+    <span class="k">elif</span> <span class="n">ev</span><span class="o">.</span><span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s">&#39;down&#39;</span><span class="p">,</span><span class="s">&#39;left&#39;</span><span class="p">):</span>
+      <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="o">&gt;</span><span class="mi">1</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span> <span class="o">-=</span> <span class="mi">1</span>
+    <span class="k">else</span><span class="p">:</span> <span class="k">return</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="o">&lt;</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stack</span><span class="p">):</span>
+      <span class="p">(</span><span class="n">p00</span><span class="p">,</span><span class="n">p10</span><span class="p">),(</span><span class="n">p01</span><span class="p">,</span><span class="n">p11</span><span class="p">)</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">stack</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">]</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">set_xy</span><span class="p">((</span><span class="n">p00</span><span class="p">,</span><span class="n">p01</span><span class="p">))</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">set_width</span><span class="p">(</span><span class="n">p10</span><span class="o">-</span><span class="n">p00</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">set_height</span><span class="p">(</span><span class="n">p11</span><span class="o">-</span><span class="n">p01</span><span class="p">)</span>
+      <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">rec</span><span class="o">.</span><span class="n">set_visible</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">txt</span><span class="o">.</span><span class="n">set_text</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">level</span><span class="p">))</span></div></div>
+</pre></div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li><a href="../index.html">Fractal animation 0.9 documentation</a> &raquo;</li>
+          <li><a href="index.html" >Module code</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Jean-Marc Andreoli.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>

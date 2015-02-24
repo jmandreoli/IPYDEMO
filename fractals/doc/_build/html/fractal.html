@@ -1,0 +1,244 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>fractal — Generic fractal animation &mdash; Fractal animation 0.9 documentation</title>
+    
+    <link rel="stylesheet" href="_static/nature.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.9',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="top" title="Fractal animation 0.9 documentation" href="index.html" />
+    <link rel="prev" title="Welcome to Fractal animation’s documentation!" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to Fractal animation’s documentation!"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">Fractal animation 0.9 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="fractal-generic-fractal-animation">
+<h1><a class="reference internal" href="#module-fractal" title="fractal"><tt class="xref py py-mod docutils literal"><span class="pre">fractal</span></tt></a> &#8212; Generic fractal animation<a class="headerlink" href="#fractal-generic-fractal-animation" title="Permalink to this headline">¶</a></h1>
+<p>This module provides basic utilities to build fractal animations.</p>
+<div class="section" id="module-fractal">
+<span id="available-types-and-functions"></span><h2>Available types and functions<a class="headerlink" href="#module-fractal" title="Permalink to this headline">¶</a></h2>
+<dl class="function">
+<dt id="fractal.FractalAnimation">
+<tt class="descclassname">fractal.</tt><tt class="descname">FractalAnimation</tt><big>(</big><em>ax</em>, <em>func=None</em>, <em>frames=None</em>, <em>**ka</em><big>)</big><a class="reference internal" href="_modules/fractal.html#FractalAnimation"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fractal.FractalAnimation" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>ax</strong> (<tt class="xref py py-class docutils literal"><span class="pre">matplotlib.Axes</span></tt> instance) &#8211; matplotlib axes on which to display</li>
+<li><strong>func</strong> &#8211; a display function (see below)</li>
+<li><strong>frames</strong> &#8211; a generator function (see below)</li>
+<li><strong>ka</strong> &#8211; passed to <tt class="xref py py-func docutils literal"><span class="pre">matplotlib.FuncAnimation()</span></tt></li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<p>Displays an object (target, typically a fractal) allowing navigation through multiple levels of zooming. For a given zooming level, the display is assumed dynamic, starting from a coarse precision level and refining progressively over time (typical of fractals).</p>
+<ul class="simple">
+<li>Function <em>frames</em> is passed a boundary specification and is expected to return an iterator of frame informations needed to draw the subset of the target within this boundary at successive levels of precision. The iterator is enumerated at regular intervals in the animation as long as the zooming level is not changed, and resumed whenever the same zooming level is reselected. A boundary spec is a pair of pairs (the x-bounds and the y-bounds in data coordinates).</li>
+<li>Function <em>func</em> is passed a frame information (from the iterator returned by <em>frame</em>) and a boolean flag, and is expected to draw the frame on <em>ax</em>. It is called at each new precision level with the flag set to <tt class="xref py py-const docutils literal"><span class="pre">False</span></tt>, and when the zooming level changes with the flag is set to <tt class="xref py py-const docutils literal"><span class="pre">True</span></tt>.</li>
+</ul>
+</dd></dl>
+
+<dl class="class">
+<dt id="fractal.Selection">
+<em class="property">class </em><tt class="descclassname">fractal.</tt><tt class="descname">Selection</tt><big>(</big><em>ax</em>, <em>gc=&lt;function Selection.&lt;lambda&gt; at 0x7fc5f464d598&gt;</em>, <em>**ka</em><big>)</big><a class="reference internal" href="_modules/fractal.html#Selection"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fractal.Selection" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Objects of this class manage a stack of zoom levels on some axes. A zoom level is defined by a boundary specification (a pair of pairs: x-bounds and y-bounds in data coordinates). A new zoom level is created on top of the current level in the stack by user selection of a rectangle on the axes, using the mouse. Pressing the arrow keys on the keyboard allows navigation through the zoom level stack (up or right arrow to go up the stack, down or left arrow to go down).</p>
+<p>Attributes:</p>
+<dl class="attribute">
+<dt id="fractal.Selection.rec">
+<tt class="descname">rec</tt><a class="headerlink" href="#fractal.Selection.rec" title="Permalink to this definition">¶</a></dt>
+<dd><p>The rectangle for zoom level selection. Visible at all levels of zooming except the top one, where it is visible only when selection is ongoing.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fractal.Selection.txt">
+<tt class="descname">txt</tt><a class="headerlink" href="#fractal.Selection.txt" title="Permalink to this definition">¶</a></dt>
+<dd><p>A text widget to display the zoom level.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fractal.Selection.stack">
+<tt class="descname">stack</tt><a class="headerlink" href="#fractal.Selection.stack" title="Permalink to this definition">¶</a></dt>
+<dd><p>The stack of boundary specifications for each zoom level. At initialisation, the boundary of the the axes are used.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fractal.Selection.level">
+<tt class="descname">level</tt><a class="headerlink" href="#fractal.Selection.level" title="Permalink to this definition">¶</a></dt>
+<dd><p>The current zoom level, as an index in the <a class="reference internal" href="#fractal.Selection.stack" title="fractal.Selection.stack"><tt class="xref py py-attr docutils literal"><span class="pre">stack</span></tt></a>.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fractal.Selection.bbox">
+<tt class="descname">bbox</tt><a class="headerlink" href="#fractal.Selection.bbox" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set to <tt class="xref py py-const docutils literal"><span class="pre">None</span></tt> when no selection is active, otherwise, set to the current selection.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="fractal.Selection.gc">
+<tt class="descname">gc</tt><a class="headerlink" href="#fractal.Selection.gc" title="Permalink to this definition">¶</a></dt>
+<dd><p>A callback function with one argument, which is called with each newly created zoom level (its idex is passed as argument). This allows for garbage collection of the zoom levels above the current one, which are discarded by the newly created one.</p>
+</dd></dl>
+
+<p>Methods:</p>
+<dl class="method">
+<dt id="fractal.Selection.start">
+<tt class="descname">start</tt><big>(</big><em>ev</em><big>)</big><a class="reference internal" href="_modules/fractal.html#Selection.start"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fractal.Selection.start" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ev</strong> (<tt class="xref py py-class docutils literal"><span class="pre">matplotlib.Event</span></tt> instance) &#8211; a GUI event</td>
+</tr>
+</tbody>
+</table>
+<p>Initiates a rectangle capture when button 1 is pressed.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fractal.Selection.updt">
+<tt class="descname">updt</tt><big>(</big><em>ev</em><big>)</big><a class="reference internal" href="_modules/fractal.html#Selection.updt"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fractal.Selection.updt" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ev</strong> (<tt class="xref py py-class docutils literal"><span class="pre">matplotlib.Event</span></tt> instance) &#8211; a GUI event</td>
+</tr>
+</tbody>
+</table>
+<p>Updates the rectangle capture while button 1 is pressed and the mouse moves around.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fractal.Selection.stop">
+<tt class="descname">stop</tt><big>(</big><em>ev</em><big>)</big><a class="reference internal" href="_modules/fractal.html#Selection.stop"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fractal.Selection.stop" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ev</strong> (<tt class="xref py py-class docutils literal"><span class="pre">matplotlib.Event</span></tt> instance) &#8211; a GUI event</td>
+</tr>
+</tbody>
+</table>
+<p>Finalises the rectangle capture when button 1 is released.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="fractal.Selection.xlevel">
+<tt class="descname">xlevel</tt><big>(</big><em>ev</em><big>)</big><a class="reference internal" href="_modules/fractal.html#Selection.xlevel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#fractal.Selection.xlevel" title="Permalink to this definition">¶</a></dt>
+<dd><table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ev</strong> (<tt class="xref py py-class docutils literal"><span class="pre">matplotlib.Event</span></tt> instance) &#8211; a GUI event</td>
+</tr>
+</tbody>
+</table>
+<p>Navigates across the zoom levels.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#"><tt class="docutils literal"><span class="pre">fractal</span></tt> &#8212; Generic fractal animation</a><ul>
+<li><a class="reference internal" href="#module-fractal">Available types and functions</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">Welcome to Fractal animation&#8217;s documentation!</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/fractal.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Welcome to Fractal animation’s documentation!"
+             >previous</a> |</li>
+        <li><a href="index.html">Fractal animation 0.9 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2015, Jean-Marc Andreoli.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.3.
+    </div>
+  </body>
+</html>
