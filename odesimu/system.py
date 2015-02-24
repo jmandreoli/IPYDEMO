@@ -1,7 +1,6 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from time import clock
 from numpy import zeros, nan, infty
 from scipy.integrate import ode
 from functools import partial
@@ -67,12 +66,11 @@ Runs a simulation of the system from the initial state *ini* (time 0) until *max
 :param ax: matplotlib axes on which to display
 :type ax: :class:`matplotlib.Axes` instance
 :param disp: a display function (see below)
-:param simul: argument dictionary for the simulation (passed to method :meth:`runstep`)
 :param animate: animation function
 :param taild: shadow duration in sec
-:param ini: initial state of the system
 :param srate: sampling rate in sec^-1
 :param hooks: list of display hooks (see below)
+:param ka: argument dictionary for the simulation (passed to method :meth:`runstep`)
 
 Runs a simulation of the system and displays it in *ax* as an animation.
 
@@ -98,20 +96,29 @@ A display hook is a function which is invoked once with argument *ax*, and retur
 
   @staticmethod
   def infohook(ax,srate):
+    r"""
+A display hook which displays some information about the simulation:
+
+* a simulation clock
+
+* the ratio of the real execution duration of one step of the simulation to the simulation duration of that step.
+
+When the ratio is below one, the simulation clock is adjusted to be a real clock. If above one, the simulation clock is slower than a real clock.
+    """
     from matplotlib.patches import Rectangle
-    txtstyle = dict(transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
-    ax.text(0.01,0.99,'time:',**txtstyle)
-    wallclockdisp = ax.text(0.07,0.99,'',**txtstyle)
-    wallclock_format = '{:.1f}s'.format
+    from time import time
+    ax.text(0.01,0.99,'time:',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
+    simclockdisp = ax.text(0.07,0.99,'',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
+    simclock_format = '{:.1f}s'.format
     ax.add_patch(Rectangle((.15,.99),0.1,-.01,transform=ax.transAxes,fill=False,ec='black',alpha=.8))
-    loaddisp = ax.add_patch(Rectangle((.15,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='gray',alpha=.8))
-    load1disp = ax.add_patch(Rectangle((.25,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='red',alpha=.8))
-    cpu = clock()
+    ratiodisp = ax.add_patch(Rectangle((.15,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='gray',alpha=.8))
+    ratio1disp = ax.add_patch(Rectangle((.25,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='black',alpha=.8))
+    real = time()
     def info(t):
-      nonlocal cpu
-      cpu2 = clock(); r = srate*(cpu2-cpu); cpu = cpu2
-      wallclockdisp.set_text(wallclock_format(t))
-      loaddisp.set_width(.1*min(r,1.)); load1disp.set_width(.1*max(r-1.,0.))
+      nonlocal real
+      real2 = time(); ratio = srate*(real2-real); real = real2
+      simclockdisp.set_text(simclock_format(t))
+      ratiodisp.set_width(.1*min(ratio,1.)); ratio1disp.set_width(.1*max(ratio-1.,0.))
     return info
 
   def launch(self,fig=dict(figsize=(9,9)),animate=dict(),**ka):
