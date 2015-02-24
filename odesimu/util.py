@@ -1,0 +1,102 @@
+import logging
+logger = logging.getLogger(__name__)
+
+from numpy import zeros, infty, linspace, hstack, exp, infty, newaxis, digitize
+from numpy.random import uniform
+from functools import wraps
+
+#--------------------------------------------------------------------------------------------------
+def buffered(T=None,N=None,bufferException=type('bufferException',(Exception,),{})):
+  r"""
+:param T: size of the interval over which buffering is performed
+:param N: number of samples taken over that interval
+
+A functor (decorator) which allows limited buffering of a function. For each interval of length *T* of the argument, the values of the function are buffered at *N* equidistant samples and interpolated if necessary. At any time, two adjacent intervals are kept in the buffer. If an invocation is requested for an argument outside these two intervals, it must be in the next interval of length *T*\, which becomes the new right-most interval of the buffer and the previous left-most interval is dropped. Otherwise, an :class:`Exception` is raised.
+  """
+#--------------------------------------------------------------------------------------------------
+  def tr(f):
+    epoch = 0
+    buf = linspace(0,2*T,2*N+1)[:,newaxis]
+    buf = hstack((buf,f(buf)))
+    step = T/N
+    @wraps(f)
+    def F(t):
+      nonlocal epoch
+      k,dt = divmod(t,step); r=dt/step; e,n = divmod(int(k),N); de = e-epoch
+      if de==2:
+        buf[:N+1] = buf[N:]
+        buf[N:,0] += T
+        buf[N:,1:] = f(buf[N:,0:1])
+        epoch += 1
+        n += N
+      elif de==1: n += N
+      elif de<0: raise bufferException(de)
+      v = buf[n:n+2,1:]
+      return r*v[0]+(1.-r)*v[1]
+    return F
+  return tr
+
+#--------------------------------------------------------------------------------------------------
+def blurred(level=None,M=1000,shape=(1,),ident=lambda f: f):
+  r"""
+:param level: the degree of blurring, as a positive number.
+
+A functor (decorator) which applies a multiplicative noise to a function. The multiplicative coefficient follows a log-uniform distribution between -*level* and *level*\. Two invocations of the blurred function, whether they have the same argument or not, are blurred independently.
+  """
+#--------------------------------------------------------------------------------------------------
+  if not level: return ident
+  def noise(M):
+    while True:
+      for x in exp(uniform(-level,level,(M,)+shape)): yield x
+  def tr(f):
+    @wraps(f)
+    def F(t,f=f,b=noise(M)): return f(t)*next(b)
+    return F
+  return tr
+
+#--------------------------------------------------------------------------------------------------
+class DPiecewiseFuncException(Exception): pass
+class DPiecewiseFunc:
+  r"""
+Objects of this class implement piecewise constant functions which are dynamically constructed. Whenever a new change point is inserted, it must be greater than all the previous change points and all the arguments at which the function has already been evaluated, otherwise, an :class:`Exception` is raised.
+  """
+#--------------------------------------------------------------------------------------------------
+  def __init__(self,N=None,v=None):
+    K, = v.shape
+    self.changepoint = zeros((N,))
+    self.value = zeros((N,)+v.shape)
+    self.default = v
+    def call(t):
+      if t>self.tmax: self.tmax = t
+      n, = digitize((t,),self.changepoint,right=True)
+      if n==0: raise DPiecewiseFuncException('buffer exceeded',t)
+      return self.value[n-1]
+    self.call = call
+
+  def reset(self,v=None):
+    if v is None: v = self.default
+    self.changepoint[:] = -infty
+    self.value[...] = v[newaxis,:]
+    self.tmax = -infty
+
+  def update(self,t,v):
+    if t<self.tmax: raise DPiecewiseFuncException('obsolete update',t)
+    self.changepoint[:-1] = self.changepoint[1:]
+    self.value[:-1] = self.value[1:]
+    self.changepoint[-1] = t
+    self.value[-1,...] = v
+
+  def __call__(self,t): return self.call(t)
+
+#--------------------------------------------------------------------------------------------------
+def controlLogger(ax,logger,prefix='alt+'):
+  r"""
+Allows the logging level of *logger* to be controlled through the keyboard: when the canvas of *ax* has focus, pressing keys i, w, e, c while holding the *prefix* key pressed, sets the logging level to INFO, WARN, ERROR, CRITICAL respectively.
+  """
+#--------------------------------------------------------------------------------------------------
+  D = dict((prefix+k,v) for k,v in dict(i=logging.INFO,w=logging.WARN,e=logging.ERROR,c=logging.CRITICAL).items())
+  def set(ev):
+    lvl = D.get(ev.key)
+    if lvl is not None: logger.setLevel(lvl)
+  ax.figure.canvas.mpl_connect('key_press_event',set)
+
