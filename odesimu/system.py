@@ -5,7 +5,7 @@ from numpy import zeros, nan, infty
 from scipy.integrate import ode
 from functools import partial
 
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
 class System (object):
   r"""
 Objects of this class represent abstract dynamical systems (in physics, electronics, hydraulics etc.) governed by an ordinary differential equation (ODE):
@@ -38,12 +38,13 @@ Attributes defined in subclasses (or preferably at instance level for efficiency
 
 Methods:
   """
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
 
   jacobian = None
   integrator = dict(name='lsoda')
   shadowshape = (2,)
 
+#--------------------------------------------------------------------------------------------------
   def runstep(self,ini,srate,maxtime=infty):
     r"""
 :param ini: initial state of the system
@@ -52,6 +53,7 @@ Methods:
 
 Runs a simulation of the system from the initial state *ini* (time 0) until *maxtime*\, sampled at rate *srate*\. The elements are returned by an iterator.
     """
+#--------------------------------------------------------------------------------------------------
     r = ode(self.main,self.jacobian).set_integrator(**self.integrator)
     dt = 1/srate
     r.set_initial_value(ini)
@@ -61,6 +63,7 @@ Runs a simulation of the system from the initial state *ini* (time 0) until *max
       r.integrate(r.t+dt)
     else: raise Exception('ODE solver failed!')
 
+#--------------------------------------------------------------------------------------------------
   def display(self,ax,disp,animate=None,taild=None,srate=None,hooks=(),**ka):
     r"""
 :param ax: matplotlib axes on which to display
@@ -78,6 +81,7 @@ This method is meant to be overridden in subclasses to perform some initialisati
 
 A display hook is a function which is invoked once with argument *ax*, and returns a function which is invoked at each frame with its argument set to the time. Display hooks are meant to display side items other than the system.
     """
+#--------------------------------------------------------------------------------------------------
     tailn = int(taild*srate)
     tail = zeros((tailn,)+self.shadowshape,float)
     tail[...] = nan
@@ -94,6 +98,7 @@ A display hook is a function which is invoked once with argument *ax*, and retur
       info(t)
     return animate(ax.figure,interval=1000./srate,frames=partial(self.runstep,srate=srate,**ka),func=disp_)
 
+#--------------------------------------------------------------------------------------------------
   @staticmethod
   def infohook(ax,srate):
     r"""
@@ -101,26 +106,30 @@ A display hook which displays some information about the simulation:
 
 * a simulation clock
 
-* the ratio of the real execution duration of one step of the simulation to the simulation duration of that step.
+* the ratio between the real execution duration of one simulation step and the simulation duration of that step.
 
 When the ratio is below one, the simulation clock is adjusted to be a real clock. If above one, the simulation clock is slower than a real clock.
     """
+#--------------------------------------------------------------------------------------------------
     from matplotlib.patches import Rectangle
-    from time import time
+    from time import process_time
     ax.text(0.01,0.99,'time:',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
     simclockdisp = ax.text(0.07,0.99,'',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
     simclock_format = '{:.1f}s'.format
-    ax.add_patch(Rectangle((.15,.99),0.1,-.01,transform=ax.transAxes,fill=False,ec='black',alpha=.8))
+    ratio_width = 0.1
+    ax.add_patch(Rectangle((.15,.99),ratio_width,-.01,transform=ax.transAxes,fill=False,ec='black',alpha=.8))
     ratiodisp = ax.add_patch(Rectangle((.15,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='gray',alpha=.8))
-    ratio1disp = ax.add_patch(Rectangle((.25,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='black',alpha=.8))
-    real = time()
+    ratio1disp = ax.add_patch(Rectangle((.15+ratio_width,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='black',alpha=.8))
+    real = process_time()
     def info(t):
       nonlocal real
-      real2 = time(); ratio = srate*(real2-real); real = real2
+      real2 = process_time(); ratio = srate*(real2-real); real = real2
       simclockdisp.set_text(simclock_format(t))
-      ratiodisp.set_width(.1*min(ratio,1.)); ratio1disp.set_width(.1*max(ratio-1.,0.))
+      ratiodisp.set_width(ratio_width*min(ratio,1.))
+      ratio1disp.set_width(ratio_width*max(ratio-1.,0.))
     return info
 
+#--------------------------------------------------------------------------------------------------
   def launch(self,fig=dict(figsize=(9,9)),animate=dict(),**ka):
     r"""
 :param animate: animation optional parameters (as a dictionary)
@@ -129,12 +138,13 @@ When the ratio is below one, the simulation clock is adjusted to be a real clock
 
 Creates matplotlib axes, then runs a simulation of the system and displays it as an animation on those axes, using the :mod:`matplotlib.animation` animation functionality.
     """
+#--------------------------------------------------------------------------------------------------
     from matplotlib.pyplot import figure, show
     from matplotlib.animation import FuncAnimation
     self.display(figure(**fig).add_subplot(1,1,1),animate=partial(FuncAnimation,**animate),**ka)
     show()
 
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
 def point_display(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):
   r"""
 :param ax: matplotlib axes on which to display
@@ -143,7 +153,7 @@ def point_display(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):
 
 A display hook which displays a single point whose position at time *t* is given by *f(t)*\.
   """
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
   for k,v in _dflt: ka.setdefault(k,v)
   trg_s = ax.scatter((0,),(0,),**ka)
   return lambda t: trg_s.set_offsets((f(t),))

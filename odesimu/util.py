@@ -1,11 +1,11 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from numpy import zeros, infty, linspace, hstack, exp, infty, newaxis, digitize
+from numpy import zeros, infty, linspace, hstack, exp, infty, newaxis, digitize, eye
 from numpy.random import uniform
 from functools import wraps
 
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
 def buffered(T=None,N=None,bufferException=type('bufferException',(Exception,),{})):
   r"""
 :param T: size of the interval over which buffering is performed
@@ -13,7 +13,7 @@ def buffered(T=None,N=None,bufferException=type('bufferException',(Exception,),{
 
 A functor (decorator) which allows limited buffering of a function. For each interval of length *T* of the argument, the values of the function are buffered at *N* equidistant samples and interpolated if necessary. At any time, two adjacent intervals are kept in the buffer. If an invocation is requested for an argument outside these two intervals, it must be in the next interval of length *T*\, which becomes the new right-most interval of the buffer and the previous left-most interval is dropped. Otherwise, an :class:`Exception` is raised.
   """
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
   def tr(f):
     epoch = 0
     buf = linspace(0,2*T,2*N+1)[:,newaxis]
@@ -36,14 +36,14 @@ A functor (decorator) which allows limited buffering of a function. For each int
     return F
   return tr
 
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
 def blurred(level=None,M=1000,shape=(1,),ident=lambda f: f):
   r"""
 :param level: the degree of blurring, as a positive number.
 
 A functor (decorator) which applies a multiplicative noise to a function. The multiplicative coefficient follows a log-uniform distribution between -*level* and *level*\. Two invocations of the blurred function, whether they have the same argument or not, are blurred independently.
   """
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
   if not level: return ident
   def noise(M):
     while True:
@@ -54,13 +54,13 @@ A functor (decorator) which applies a multiplicative noise to a function. The mu
     return F
   return tr
 
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
 class DPiecewiseFuncException(Exception): pass
 class DPiecewiseFunc:
   r"""
 Objects of this class implement piecewise constant functions which are dynamically constructed. Whenever a new change point is inserted, it must be greater than all the previous change points and all the arguments at which the function has already been evaluated, otherwise, an :class:`Exception` is raised.
   """
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
   def __init__(self,N=None,v=None):
     K, = v.shape
     self.changepoint = zeros((N,))
@@ -88,12 +88,42 @@ Objects of this class implement piecewise constant functions which are dynamical
 
   def __call__(self,t): return self.call(t)
 
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
+class PIDController (DPiecewiseFunc):
+  r"""
+Objects of this class implement rudimentary PID controllers.
+  """
+#==================================================================================================
+  def __init__(self,gP=0.,gI=0.,gD=0.,observe=None,target=None,**ka):
+    v0 = observe()
+    super(PIDController,self).__init__(v=v0,**ka)
+    R = eye(len(v0.shape))
+    last = None
+    intg = zeros(v0.shape)
+    def update(t,state,update=self.update):
+      nonlocal last, intg
+      v = observe(state)-target(t)
+      tlast,vlast = last
+      dt = t-tlast
+      intg += .5*(vlast+v)*dt
+      r  = - gP*v - gD*(v-vlast)/dt - gI*intg
+      update(t,r)
+      last = t,v
+    self.update = update
+    def reset(state,reset=self.reset):
+      nonlocal last
+      v = observe(state)-target(0)
+      last = 0,v
+      r = -gP*v
+      reset(r)
+    self.reset = reset
+
+#==================================================================================================
 def controlLogger(ax,logger,prefix='alt+'):
   r"""
 Allows the logging level of *logger* to be controlled through the keyboard: when the canvas of *ax* has focus, pressing keys i, w, e, c while holding the *prefix* key pressed, sets the logging level to INFO, WARN, ERROR, CRITICAL respectively.
   """
-#--------------------------------------------------------------------------------------------------
+#==================================================================================================
   D = dict((prefix+k,v) for k,v in dict(i=logging.INFO,w=logging.WARN,e=logging.ERROR,c=logging.CRITICAL).items())
   def set(ev):
     lvl = D.get(ev.key)
