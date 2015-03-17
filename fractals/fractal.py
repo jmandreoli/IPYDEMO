@@ -13,10 +13,9 @@ def FractalAnimation(ax,func=None,frames=None,**ka):
 
 Displays an object (target, typically a fractal) allowing navigation through multiple levels of zooming. For a given zooming level, the display is assumed dynamic, starting from a coarse precision level and refining progressively over time (typical of fractals).
 
-- Function *frames* is passed a boundary specification and is expected to return an iterator of frame informations needed to draw the subset of the target within this boundary at successive levels of precision. The iterator is enumerated at regular intervals in the animation as long as the zooming level is not changed, and resumed whenever the same zooming level is reselected. A boundary spec is a pair of pairs (the x-bounds and the y-bounds in data coordinates).
+* Function *frames* is passed a boundary specification and is expected to return an iterator of frame informations needed to draw the subset of the target within this boundary at successive levels of precision. The iterator is enumerated at regular intervals in the animation as long as the zooming level is not changed, and resumed whenever the same zooming level is reselected. A boundary spec is a pair of pairs (the x-bounds and the y-bounds in data coordinates).
 
-- Function *func* is passed a frame information (from the iterator returned by *frame*\) and a boolean flag, and is expected to draw the frame on *ax*\. It is called at each new precision level with the flag set to :const:`False`, and when the zooming level changes with the flag is set to :const:`True`.
-
+* Function *func* is passed a frame information (from the iterator returned by *frame*\) and a boolean flag, and is expected to draw the frame on *ax*\. It is called at each new precision level with the flag set to :const:`False`, and when the zooming level changes with the flag is set to :const:`True`.
   """
   from matplotlib.animation import FuncAnimation
   def forever(k,seq):
@@ -49,10 +48,10 @@ Displays an object (target, typically a fractal) allowing navigation through mul
         yield next(seq)
       else:
         yield None
-  selection = Selection(ax)
-  txt = ax.text(.001,.999,'',ha='left',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
   try: ax.figure.canvas.toolbar.setVisible(False)
   except: pass
+  selection = Selection(ax)
+  txt = ax.text(.001,.999,'',ha='left',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
   return FuncAnimation(ax.figure,func=Func,frames=Frames,**ka)
 
 #----------------------------------------------------------------------------------------------------
@@ -65,11 +64,11 @@ Attributes:
 
 .. attribute:: rec
 
-   The rectangle for zoom level selection. Visible at all levels of zooming except the top one, where it is visible only when selection is ongoing.
+   The rectangle (:class:`matplotlib.patch.Rectangle` instance) for zoom level selection. Visible at all levels of zooming except the top one, where it is visible only when selection is ongoing.
 
 .. attribute:: txt
 
-   A text widget to display the zoom level.
+   A text widget (:class:`matplotlib.text.Text` instance) to display the zoom level.
 
 .. attribute:: stack
 
@@ -81,11 +80,11 @@ Attributes:
 
 .. attribute:: bbox
 
-   Set to :const:`None` when no selection is active, otherwise, set to the current selection.
+   Set to :const:`None` when no selection is active, otherwise, set to the current selection (corners of the boundary rectangle).
 
 .. attribute:: gc
 
-   A callback function with one argument, which is called with each newly created zoom level (its idex is passed as argument). This allows for garbage collection of the zoom levels above the current one, which are discarded by the newly created one.
+   A callback function with one argument, which is called with each newly created zoom level (its index is passed as argument). This allows for garbage collection of the zoom levels above the current one, which are discarded by the newly created one.
 
 Methods:
   """

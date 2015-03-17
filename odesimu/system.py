@@ -1,9 +1,15 @@
+__all__ = 'System', 'marker_hook'
+
 import logging
 logger = logging.getLogger(__name__)
 
 from numpy import zeros, nan, infty
 from scipy.integrate import ode
 from functools import partial
+
+"""
+This module provides tools to easily implement simulations of dynamical systems defined by ODE's.
+"""
 
 #==================================================================================================
 class System (object):
@@ -145,13 +151,13 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
     show()
 
 #==================================================================================================
-def point_display(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):
+def marker_hook(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):
   r"""
 :param ax: matplotlib axes on which to display
 :type ax: :class:`matplotlib.Axes` instance
 :param f: a function with one parameter
 
-A display hook which displays a single point whose position at time *t* is given by *f(t)*\.
+A display hook which displays a single marker whose position at time *t* is given by *f(t)*\.
   """
 #==================================================================================================
   for k,v in _dflt: ka.setdefault(k,v)

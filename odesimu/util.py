@@ -1,3 +1,5 @@
+__all__ = 'buffered', 'blurred', 'DPiecewiseFuncException', 'DPiecewiseFunc', 'PIDController', 'logger_hook'
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -119,7 +121,7 @@ Objects of this class implement rudimentary PID controllers.
     self.reset = reset
 
 #==================================================================================================
-def controlLogger(ax,logger,prefix='alt+'):
+def logger_hook(ax,logger,prefix='alt+'):
   r"""
 Allows the logging level of *logger* to be controlled through the keyboard: when the canvas of *ax* has focus, pressing keys i, w, e, c while holding the *prefix* key pressed, sets the logging level to INFO, WARN, ERROR, CRITICAL respectively.
   """
