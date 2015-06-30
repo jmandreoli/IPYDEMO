@@ -1,9 +1,9 @@
 import logging
 logger = logging.getLogger(__name__)
 
-#----------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
 def FractalAnimation(ax,func=None,frames=None,**ka):
-#----------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------
   r"""
 :param ax: matplotlib axes on which to display
 :type ax: :class:`matplotlib.Axes` instance
@@ -13,9 +13,9 @@ def FractalAnimation(ax,func=None,frames=None,**ka):
 
 Displays an object (target, typically a fractal) allowing navigation through multiple levels of zooming. For a given zooming level, the display is assumed dynamic, starting from a coarse precision level and refining progressively over time (typical of fractals).
 
-* Function *frames* is passed a boundary specification and is expected to return an iterator of frame informations needed to draw the subset of the target within this boundary at successive levels of precision. The iterator is enumerated at regular intervals in the animation as long as the zooming level is not changed, and resumed whenever the same zooming level is reselected. A boundary spec is a pair of pairs (the x-bounds and the y-bounds in data coordinates).
+- Function *frames* is passed a boundary specification and is expected to return an iterator of frame informations needed to draw the subset of the target within this boundary at successive levels of precision. The iterator is enumerated at regular intervals in the animation as long as the zooming level is not changed, and resumed whenever the same zooming level is reselected. A boundary spec is a pair of pairs (the x-bounds and the y-bounds in data coordinates).
 
-* Function *func* is passed a frame information (from the iterator returned by *frame*\) and a boolean flag, and is expected to draw the frame on *ax*\. It is called at each new precision level with the flag set to :const:`False`, and when the zooming level changes with the flag is set to :const:`True`.
+- Function *func* is passed a frame information (from the iterator returned by *frame*\) and a boolean flag, and is expected to draw the frame on *ax*\. It is called at each new precision level with the flag set to :const:`False`, and when the zooming level changes with the flag is set to :const:`True`.
   """
   from matplotlib.animation import FuncAnimation
   def forever(k,seq):
@@ -54,9 +54,9 @@ Displays an object (target, typically a fractal) allowing navigation through mul
   txt = ax.text(.001,.999,'',ha='left',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
   return FuncAnimation(ax.figure,func=Func,frames=Frames,**ka)
 
-#----------------------------------------------------------------------------------------------------
+#==================================================================================================
 class Selection:
-#----------------------------------------------------------------------------------------------------
+#==================================================================================================
   r"""
 Objects of this class manage a stack of zoom levels on some axes. A zoom level is defined by a boundary specification (a pair of pairs: x-bounds and y-bounds in data coordinates). A new zoom level is created on top of the current level in the stack by user selection of a rectangle on the axes, using the mouse. Pressing the arrow keys on the keyboard allows navigation through the zoom level stack (up or right arrow to go up the stack, down or left arrow to go down).
 
@@ -89,7 +89,9 @@ Attributes:
 Methods:
   """
 
+#--------------------------------------------------------------------------------------------------
   def __init__(self,ax,gc=(lambda l: None),**ka):
+#--------------------------------------------------------------------------------------------------
     from matplotlib.patches import Rectangle
     ax.figure.canvas.mpl_connect('button_press_event',self.start)
     ax.figure.canvas.mpl_connect('button_release_event',self.stop)
@@ -102,6 +104,7 @@ Methods:
     self.bbox = None
     self.gc = gc
 
+#--------------------------------------------------------------------------------------------------
   def start(self,ev):
     r"""
 :param ev: a GUI event
@@ -109,12 +112,14 @@ Methods:
 
 Initiates a rectangle capture when button 1 is pressed.
     """
+#--------------------------------------------------------------------------------------------------
     if ev.inaxes != self.rec.axes or ev.button != 1 or self.bbox is not None: return
     p = ev.xdata, ev.ydata
     self.bbox = [p,p]
     self.rec.set_xy(p)
     self.rec.set_visible(True)
 
+#--------------------------------------------------------------------------------------------------
   def updt(self,ev):
     r"""
 :param ev: a GUI event
@@ -122,12 +127,14 @@ Initiates a rectangle capture when button 1 is pressed.
 
 Updates the rectangle capture while button 1 is pressed and the mouse moves around.
     """
+#--------------------------------------------------------------------------------------------------
     if ev.inaxes != self.rec.axes or self.bbox is None: return
     p = self.bbox[0]
     p1 = self.bbox[1] = ev.xdata, ev.ydata
     self.rec.set_width(p1[0]-p[0])
     self.rec.set_height(p1[1]-p[1])
 
+#--------------------------------------------------------------------------------------------------
   def stop(self,ev):
     r"""
 :param ev: a GUI event
@@ -135,6 +142,7 @@ Updates the rectangle capture while button 1 is pressed and the mouse moves arou
 
 Finalises the rectangle capture when button 1 is released.
     """
+#--------------------------------------------------------------------------------------------------
     if ev.inaxes != self.rec.axes or ev.button != 1 or self.bbox is None: return
     p,p1 = self.bbox
     bounds = tuple(sorted((p[0],p1[0]))), tuple(sorted((p[1],p1[1])))
@@ -145,6 +153,7 @@ Finalises the rectangle capture when button 1 is released.
     self.txt.set_text(str(self.level))
     self.bbox = None
 
+#--------------------------------------------------------------------------------------------------
   def xlevel(self,ev):
     r"""
 :param ev: a GUI event
@@ -152,6 +161,7 @@ Finalises the rectangle capture when button 1 is released.
 
 Navigates across the zoom levels.
     """
+#--------------------------------------------------------------------------------------------------
     if self.bbox is not None: return
     if ev.key in ('up','right'):
       if self.level<len(self.stack): self.level += 1
