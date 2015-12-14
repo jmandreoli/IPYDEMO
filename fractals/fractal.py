@@ -19,11 +19,8 @@ Displays an object (target, typically a fractal) allowing navigation through mul
   """
   from matplotlib.animation import FuncAnimation
   def forever(k,seq):
-    n = 0; v = None
-    while True:
-      try: v = next(seq); n += 1
-      except StopIteration: pass
-      yield k,n,v
+    for n,v in enumerate(seq,1): yield k,n,v
+    while True: yield k,n,v
   def Func(args,cur=[-1,0]):
     if args is None: return (selection.rec,)
     else:
