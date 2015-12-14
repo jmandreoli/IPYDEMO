@@ -145,10 +145,9 @@ When the ratio is below one, the simulation clock is adjusted to be a real clock
 Creates matplotlib axes, then runs a simulation of the system and displays it as an animation on those axes, using the :mod:`matplotlib.animation` animation functionality.
     """
 #--------------------------------------------------------------------------------------------------
-    from matplotlib.pyplot import figure, show
+    from matplotlib.pyplot import figure
     from matplotlib.animation import FuncAnimation
-    self.display(figure(**fig).add_subplot(1,1,1),animate=partial(FuncAnimation,**animate),**ka)
-    show()
+    return self.display(figure(**fig).add_subplot(1,1,1),animate=partial(FuncAnimation,**animate),**ka)
 
 #==================================================================================================
 def marker_hook(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):
