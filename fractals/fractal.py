@@ -1,175 +1,115 @@
 import logging
 logger = logging.getLogger(__name__)
 
-#--------------------------------------------------------------------------------------------------
-def FractalAnimation(ax,func=None,frames=None,**ka):
-#--------------------------------------------------------------------------------------------------
+from numpy import array, sqrt, zeros, ones, seterr, abs, nan, linspace, newaxis
+from itertools import islice
+from .util import MultizoomAnimation
+
+#==================================================================================================
+class Fractal:
   r"""
+:param main: a generator function (see below)
+:param eradius: escape radius of the sequence defining this fractal object
+:type eradius: :class:`float`
+:param ibounds: area of interest of this fractal object, as a bounding box
+
+Objects of this class represent abstract fractals, defined by two functions :math:`u:\mathbb{C}\mapsto\mathbb{C}` and :math:`v:\mathbb{C}\times\mathbb{C}\mapsto\mathbb{C}` as the set of complex numbers :math:`c` such that the sequence
+
+.. math::
+
+   \begin{equation*}
+   z_0(c)=u(c) \hspace{1cm} z_{n+1}(c)=v(z_n(c),c)
+   \end{equation*}
+
+remains bounded.
+
+Parameter *main* is assumed to be a generator function, which, given a grid of complex values :math:`c`, yields the corresponding successive grids :math:`z_n(c)` for :math:`n=0\ldots\infty`. The escape radius of a sequence is such that if the sequence reaches a value beyond that radius, it will not be bounded.
+
+Attributes and methods:
+  """
+#==================================================================================================
+
+  def __init__(self,main,eradius=None,ibounds=None):
+    self.main = main
+    self.eradius = eradius
+    self.ibounds = ibounds
+
+#--------------------------------------------------------------------------------------------------
+  def temperature(self,grid):
+    r"""
+:param grid: an array of complex numbers
+
+Successively yields the "temperature" grid :math:`\theta_n(c)` broadcast on all the elements :math:`c` of *grid* for :math:`n=0\ldots\infty`, where
+
+.. math::
+
+   \begin{equation*}
+   \theta_n(c) = \frac{\min\{m\leq n\;|\; |z_m(c)|>R \textrm{ or } m=n\}}{n}
+   \end{equation*}
+
+In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the proportion of times in the sequence :math:`(\hat{z}_m(c))_{m=0:n}` when the value was within the escape radius. A temperature of :math:`1.` characterises a point for which it has not been decided yet whether it belongs to this fractal (it has always been seen until now within the escape radius, but could escape later). A temperatures below one characterises a point which is provably out of this fractal, and reflects the effort (number of iterations) required to reach that decision.
+    """
+#--------------------------------------------------------------------------------------------------
+    eradius = self.eradius
+    s = grid.shape
+    tmd,tmap = zeros((2,)+s,float)
+    undecided = ones(s,bool)
+    sel = zeros(s,bool)
+    n = 0
+    seterr(invalid='ignore')
+    for z in self.main(grid):
+      sel[...] = abs(z)>=eradius
+      z[sel] = nan
+      undecided[sel] = False
+      n += 1
+      tmd[...] = -tmap
+      tmd[undecided] += 1
+      tmap += tmd/n
+      yield tmap
+
+#--------------------------------------------------------------------------------------------------
+  def display(self,ax,itermax=None,resolution=None,ibounds=None,**ka):
+    r"""
 :param ax: matplotlib axes on which to display
 :type ax: :class:`matplotlib.Axes` instance
-:param func: a display function (see below)
-:param frames: a generator function (see below)
-:param ka: passed to :func:`matplotlib.FuncAnimation`
+:param itermax: max number of iterations (precision is increased at each iteration)
+:type itermax: :class:`int`
+:param resolution: number of points to display
+:type resolution: :class:`int`
+:param ibounds: bounding box for the initial zoom (defaults to the area of interest)
 
-Displays an object (target, typically a fractal) allowing navigation through multiple levels of zooming. For a given zooming level, the display is assumed dynamic, starting from a coarse precision level and refining progressively over time (typical of fractals).
-
-- Function *frames* is passed a boundary specification and is expected to return an iterator of frame informations needed to draw the subset of the target within this boundary at successive levels of precision. The iterator is enumerated at regular intervals in the animation as long as the zooming level is not changed, and resumed whenever the same zooming level is reselected. A boundary spec is a pair of pairs (the x-bounds and the y-bounds in data coordinates).
-
-- Function *func* is passed a frame information (from the iterator returned by *frame*\) and a boolean flag, and is expected to draw the frame on *ax*\. It is called at each new precision level with the flag set to :const:`False`, and when the zooming level changes with the flag is set to :const:`True`.
-  """
-  from matplotlib.animation import FuncAnimation
-  def forever(k,seq):
-    for n,v in enumerate(seq,1): yield k,n,v
-    while True: yield k,n,v
-  def Func(args,cur=[-1,0]):
-    if args is None: return (selection.rec,)
-    else:
-      k,n,v = args
-      if k!= cur[0]: cur[:] = k,n; i = True
-      elif n!= cur[1]: cur[1] = n; i = False
-      else: return()
-      txt.set_text(str(n))
-      return (selection.rec,txt)+func(v,interrupt=i)
-  def Frames():
-    def gc(k): del stack[k:]
-    selection.gc = gc
-    stack = []
-    while True:
-      if selection.bbox is None:
-        k,K = selection.level, len(stack)
-        if K<k:
-          assert k==K+1
-          seq = forever(K,frames(selection.stack[K]))
-          stack.append(seq)
-        else: seq = stack[k-1]
-        yield next(seq)
-      else:
-        yield None
-  try: ax.figure.canvas.toolbar.setVisible(False)
-  except: pass
-  selection = Selection(ax)
-  txt = ax.text(.001,.999,'',ha='left',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
-  return FuncAnimation(ax.figure,func=Func,frames=Frames,**ka)
-
-#==================================================================================================
-class Selection:
-#==================================================================================================
-  r"""
-Objects of this class manage a stack of zoom levels on some axes. A zoom level is defined by a boundary specification (a pair of pairs: x-bounds and y-bounds in data coordinates). A new zoom level is created on top of the current level in the stack by user selection of a rectangle on the axes, using the mouse. Pressing the arrow keys on the keyboard allows navigation through the zoom level stack (up or right arrow to go up the stack, down or left arrow to go down).
-
-Attributes:
-
-.. attribute:: rec
-
-   The rectangle (:class:`matplotlib.patch.Rectangle` instance) for zoom level selection. Visible at all levels of zooming except the top one, where it is visible only when selection is ongoing.
-
-.. attribute:: txt
-
-   A text widget (:class:`matplotlib.text.Text` instance) to display the zoom level.
-
-.. attribute:: stack
-
-   The stack of boundary specifications for each zoom level. At initialisation, the boundary of the the axes are used.
-
-.. attribute:: level
-
-   The current zoom level, as an index in the :attr:`stack`\.
-
-.. attribute:: bbox
-
-   Set to :const:`None` when no selection is active, otherwise, set to the current selection (corners of the boundary rectangle).
-
-.. attribute:: gc
-
-   A callback function with one argument, which is called with each newly created zoom level (its index is passed as argument). This allows for garbage collection of the zoom levels above the current one, which are discarded by the newly created one.
-
-Methods:
-  """
-
-#--------------------------------------------------------------------------------------------------
-  def __init__(self,ax,gc=(lambda l: None),**ka):
-#--------------------------------------------------------------------------------------------------
-    from matplotlib.patches import Rectangle
-    ax.figure.canvas.mpl_connect('button_press_event',self.start)
-    ax.figure.canvas.mpl_connect('button_release_event',self.stop)
-    ax.figure.canvas.mpl_connect('motion_notify_event',self.updt)
-    ax.figure.canvas.mpl_connect('key_press_event',self.xlevel)
-    self.rec = ax.add_patch(Rectangle((0,0),width=0,height=0,alpha=.4,color='k',visible=False,**ka))
-    self.txt = ax.text(.999,.999,'1',ha='right',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
-    self.stack = [(ax.get_xlim(),ax.get_ylim())]
-    self.level = 1
-    self.bbox = None
-    self.gc = gc
-
-#--------------------------------------------------------------------------------------------------
-  def start(self,ev):
-    r"""
-:param ev: a GUI event
-:type ev: :class:`matplotlib.Event` instance
-
-Initiates a rectangle capture when button 1 is pressed.
+Displays the subset of this fractal initially zooming on *ibounds* and allows multizoom navigation.
     """
 #--------------------------------------------------------------------------------------------------
-    if ev.inaxes != self.rec.axes or ev.button != 1 or self.bbox is not None: return
-    p = ev.xdata, ev.ydata
-    self.bbox = [p,p]
-    self.rec.set_xy(p)
-    self.rec.set_visible(True)
+    if ibounds is None: ibounds = self.ibounds
+    img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,origin='lower',extent=ibounds[0]+ibounds[1])
+    def frames(bounds):
+      xb, yb = bounds
+      r = (xb[1]-xb[0])/(yb[1]-yb[0])
+      Nx = int(sqrt(resolution/r)); Ny = int(resolution/Nx)
+      grid = array(linspace(xb[0],xb[1],Ny),dtype=complex)[newaxis,:]+1.j*array(linspace(yb[0],yb[1],Nx),dtype=complex)[:,newaxis]
+      return islice(((tmap,bounds) for tmap in self.temperature(grid)),itermax)
+    def disp_(frm,interrupt=False):
+      tmap,bounds = frm
+      if interrupt:
+        img.set_array(tmap)
+        img.set_extent(bounds[0]+bounds[1])
+      img.changed()
+      return img,
+    return MultizoomAnimation(ax,disp_,frames=frames,init_func=(lambda: None),**ka)
 
+  launchdefaults = dict(itermax=1000,resolution=160000,interval=100,repeat=False)
 #--------------------------------------------------------------------------------------------------
-  def updt(self,ev):
+  def launch(self,fig=dict(figsize=(8,8)),**ka):
     r"""
-:param ev: a GUI event
-:type ev: :class:`matplotlib.Event` instance
+:param animate: animation optional parameters (as a dictionary)
+:param fig: figure optional parameters (as a dictionary)
+:param ka: passed to :meth:`display`
 
-Updates the rectangle capture while button 1 is pressed and the mouse moves around.
+Creates matplotlib axes, then runs a simulation of the system and displays it as an animation on those axes, using the :mod:`matplotlib.animation` animation functionality.
     """
 #--------------------------------------------------------------------------------------------------
-    if ev.inaxes != self.rec.axes or self.bbox is None: return
-    p = self.bbox[0]
-    p1 = self.bbox[1] = ev.xdata, ev.ydata
-    self.rec.set_width(p1[0]-p[0])
-    self.rec.set_height(p1[1]-p[1])
-
-#--------------------------------------------------------------------------------------------------
-  def stop(self,ev):
-    r"""
-:param ev: a GUI event
-:type ev: :class:`matplotlib.Event` instance
-
-Finalises the rectangle capture when button 1 is released.
-    """
-#--------------------------------------------------------------------------------------------------
-    if ev.inaxes != self.rec.axes or ev.button != 1 or self.bbox is None: return
-    p,p1 = self.bbox
-    bounds = tuple(sorted((p[0],p1[0]))), tuple(sorted((p[1],p1[1])))
-    del self.stack[self.level:]
-    self.gc(self.level)
-    self.stack.append(bounds)
-    self.level += 1
-    self.txt.set_text(str(self.level))
-    self.bbox = None
-
-#--------------------------------------------------------------------------------------------------
-  def xlevel(self,ev):
-    r"""
-:param ev: a GUI event
-:type ev: :class:`matplotlib.Event` instance
-
-Navigates across the zoom levels.
-    """
-#--------------------------------------------------------------------------------------------------
-    if self.bbox is not None: return
-    if ev.key in ('up','right'):
-      if self.level<len(self.stack): self.level += 1
-    elif ev.key in ('down','left'):
-      if self.level>1: self.level -= 1
-    else: return
-    if self.level<len(self.stack):
-      (p00,p10),(p01,p11) = self.stack[self.level]
-      self.rec.set_xy((p00,p01))
-      self.rec.set_width(p10-p00)
-      self.rec.set_height(p11-p01)
-      self.rec.set_visible(True)
-    else: self.rec.set_visible(False)
-    self.txt.set_text(str(self.level))
+    from matplotlib.pyplot import figure
+    from matplotlib.animation import FuncAnimation
+    for k,v in self.launchdefaults.items(): ka.setdefault(k,v)
+    return self.display(figure(**fig).add_axes((0,0,1,1),xticks=(),yticks=()),**ka)

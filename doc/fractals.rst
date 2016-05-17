@@ -11,3 +11,8 @@ Available types and functions
    :member-order: bysource
    :show-inheritance:
 
+.. automodule:: ipyshow.fractals.util
+   :members:
+   :member-order: bysource
+   :show-inheritance:
+

@@ -12,7 +12,7 @@ This module provides tools to easily implement simulations of dynamical systems 
 """
 
 #==================================================================================================
-class System (object):
+class System:
   r"""
 Objects of this class represent abstract dynamical systems (in physics, electronics, hydraulics etc.) governed by an ordinary differential equation (ODE):
 
