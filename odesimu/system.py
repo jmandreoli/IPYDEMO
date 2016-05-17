@@ -62,17 +62,20 @@ Returns the pair of the live and shadow display information associated with *sta
   r"""The derivative of function :math:`F` defining the ODE as :math:`J(t,s)_{uv}=\frac{\partial F_u}{\partial s_v}(t,s)`\, or :const:`None` if the Jacobian is too costly to compute (it is only used as an optimisation by the ODE solver). If the state space is of dimension :math:`d`\, then the Jacobian must be of dimension :math:`d\times d`\."""
 
   integrator = dict(name='lsoda')
-  r"""A :class:`dict` instance describing the integrator to use (see :class:`scipy.integrate.ode`)"""
+  r"""A :class:`dict` instance configuring the integrator to use (see :class:`scipy.integrate.ode`)"""
 
   shadowshape = ()
   r"""The shape (tuple of :class:`int` values) of the shadow display information to be buffered at each step. This attribute can be overridden in a subclass or instantiated at runtime."""
+
+  launchdefaults = {}
+  r"""A :class:`dict` instance configuring the :meth:`launch` method"""
 
 #--------------------------------------------------------------------------------------------------
   def runstep(self,ini,srate,maxtime=infty):
     r"""
 :param ini: initial state of the system
-:param srate: sampling rate in 1/s
-:param maxtime: simulation time in s (default to infinity)
+:param srate: sampling rate in sec^-1
+:param maxtime: simulation time in sec (default to infinity)
 
 Runs a simulation of the system from the initial state *ini* (time 0) until *maxtime*\, sampled at rate *srate*\. The elements are returned by an iterator.
     """
@@ -153,7 +156,7 @@ When the ratio is below one, the simulation clock is adjusted to be a real clock
     return info
 
 #--------------------------------------------------------------------------------------------------
-  def launch(self,fig=dict(figsize=(9,9)),animate=dict(),**ka):
+  def launch(self,fig=dict(figsize=(9,9)),**ka):
     r"""
 :param animate: animation optional parameters (as a dictionary)
 :param fig: figure optional parameters (as a dictionary)
@@ -164,7 +167,10 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
 #--------------------------------------------------------------------------------------------------
     from matplotlib.pyplot import figure
     from matplotlib.animation import FuncAnimation
-    return self.display(figure(**fig).add_subplot(1,1,1),animate=partial(FuncAnimation,**animate),**ka)
+    if isinstance(fig,dict): fig = figure(**fig)
+    for k,v in self.launchdefaults.items(): ka.setdefault(k,v)
+    animate = ka.pop('animate')
+    return self.display(fig.add_axes((0,0,1,1),aspect='equal'),animate=partial(FuncAnimation,**animate),**ka)
 
 #==================================================================================================
 def marker_hook(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):

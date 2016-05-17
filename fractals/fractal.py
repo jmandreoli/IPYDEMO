@@ -23,7 +23,9 @@ Objects of this class represent abstract fractals, defined by two functions :mat
 
 remains bounded.
 
-Parameter *main* is assumed to be a generator function, which, given a grid of complex values :math:`c`, yields the corresponding successive grids :math:`z_n(c)` for :math:`n=0\ldots\infty`. The escape radius of a sequence is such that if the sequence reaches a value beyond that radius, it will not be bounded.
+Parameter *main* is assumed to be a generator function, which, given a complex number :math:`c`, yields the corresponding successive values of :math:`z_n(c)` for :math:`n=0\ldots\infty`. It must also work as a ufunc (i.e. when passed an array, it yields successive arrays of corresponding values).
+
+Parameter *eradius* is an escape radius of the fractal, i.e. a scalar :math:`R` such that if :math:`|z_n(c)|>R` for some :math:`n`, then the sequence :math:`(z_n(c))_{n\in\mathbb{N}}` is unbounded and :math:`c` does not belong to the fractal.
 
 Attributes and methods:
   """
@@ -39,7 +41,7 @@ Attributes and methods:
     r"""
 :param grid: an array of complex numbers
 
-Successively yields the "temperature" grid :math:`\theta_n(c)` broadcast on all the elements :math:`c` of *grid* for :math:`n=0\ldots\infty`, where
+Successively yields the "temperature" grid :math:`\theta_n(c)` taken on all the elements :math:`c` of *grid* for :math:`n=0\ldots\infty`, where
 
 .. math::
 
@@ -47,7 +49,7 @@ Successively yields the "temperature" grid :math:`\theta_n(c)` broadcast on all 
    \theta_n(c) = \frac{\min\{m\leq n\;|\; |z_m(c)|>R \textrm{ or } m=n\}}{n}
    \end{equation*}
 
-In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the proportion of times in the sequence :math:`(\hat{z}_m(c))_{m=0:n}` when the value was within the escape radius. A temperature of :math:`1.` characterises a point for which it has not been decided yet whether it belongs to this fractal (it has always been seen until now within the escape radius, but could escape later). A temperatures below one characterises a point which is provably out of this fractal, and reflects the effort (number of iterations) required to reach that decision.
+In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the proportion of times in the sequence :math:`(z_m(c))_{m=0:n}` when the value was within the escape radius. A temperature of :math:`1` characterises a point for which it has not been decided yet whether it belongs to this fractal (it has always been seen until now within the escape radius, but could escape later). A temperatures below :math:`1` characterises a point which is provably out of this fractal, and the value of the temperature reflects the effort (number of iterations) required to reach that decision.
     """
 #--------------------------------------------------------------------------------------------------
     eradius = self.eradius
@@ -78,7 +80,7 @@ In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the 
 :type resolution: :class:`int`
 :param ibounds: bounding box for the initial zoom (defaults to the area of interest)
 
-Displays the subset of this fractal initially zooming on *ibounds* and allows multizoom navigation.
+Displays this fractal, initially zooming on *ibounds*, and allows multizoom navigation.
     """
 #--------------------------------------------------------------------------------------------------
     if ibounds is None: ibounds = self.ibounds
@@ -98,7 +100,6 @@ Displays the subset of this fractal initially zooming on *ibounds* and allows mu
       return img,
     return MultizoomAnimation(ax,disp_,frames=frames,init_func=(lambda: None),**ka)
 
-  launchdefaults = dict(itermax=1000,resolution=160000,interval=100,repeat=False)
 #--------------------------------------------------------------------------------------------------
   def launch(self,fig=dict(figsize=(8,8)),**ka):
     r"""
@@ -111,5 +112,9 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
 #--------------------------------------------------------------------------------------------------
     from matplotlib.pyplot import figure
     from matplotlib.animation import FuncAnimation
+    if isinstance(fig,dict): fig = figure(**fig)
     for k,v in self.launchdefaults.items(): ka.setdefault(k,v)
-    return self.display(figure(**fig).add_axes((0,0,1,1),xticks=(),yticks=()),**ka)
+    return self.display(fig.add_axes((0,0,1,1),xticks=(),yticks=()),**ka)
+
+  launchdefaults = dict(itermax=1000,resolution=160000,interval=100,repeat=False)
+  r"""A :class:`dict` instance configuring the :meth:`launch` method"""
