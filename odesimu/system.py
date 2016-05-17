@@ -22,33 +22,50 @@ Objects of this class represent abstract dynamical systems (in physics, electron
    \frac{\mathbf{d}s}{\mathbf{d}t} & = & F(t,s)
    \end{array}
 
-where :math:`s` is the state and :math:`t` is time. The ODE numerical solver used is taken from module :mod:`scipy.integrate` which assumes the state is a :class:`numpy.array`\. For display purposes, each state is associated with two pieces of information:
+where :math:`s` is the state and :math:`t` is time. The ODE numerical solver used is taken from module :mod:`scipy.integrate` which assumes the state is a :class:`numpy.array` instance or a scalar. For display purposes, each state is associated with two pieces of information:
 
 * a "live" display information which the object must be capable of interpreting to actually display the state, and
 
 * a "shadow" display information which the object buffers during a simulation and must be capable of interpreting to render a shadow of the last states.
 
-Attributes defined in subclasses (or preferably at instance level for efficiency):
-
-.. attribute:: main
-
-   The function :math:`F` defining the ODE.
-
-.. attribute:: jacobian
-
-   The derivative of function :math:`F` defining the ODE as :math:`J_{uv}(t,s)=\frac{\partial F_u}{\partial s_v}`\, or :const:`None` if the Jacobian is too costly to compute (it is only used as an optimisation by the ODE solver). If the state space is of dimension :math:`d`\, then the Jacobian must be of dimension :math:`d\times d`\.
-
-.. attribute:: fordisplay
-
-   A function which, given a state, returns the pair of the live and shadow display information associated with that state.
-
-Methods:
+Attributes and methods:
   """
 #==================================================================================================
 
+#--------------------------------------------------------------------------------------------------
+  @staticmethod
+  def main(t,state):
+    r"""
+:param t: current time
+:param state: current state of the system
+:type state: :class:`numpy.ndarray`
+:rtype: :class:`numpy.ndarray`
+
+This is function :math:`F` defining the ODE. Returns the temporal derivative of the state when the system is in state *state* at time *t*. Hence the returned array must have the same shape as *state*. This implementation raises an error, so this method must be overridden in a subclass or instantiated at runtime.
+    """
+#--------------------------------------------------------------------------------------------------
+    raise NotImplementedError()
+
+#--------------------------------------------------------------------------------------------------
+  @staticmethod
+  def fordisplay(state):
+    r"""
+:param state: current state of the system
+:type state: :class:`numpy.ndarray`
+
+Returns the pair of the live and shadow display information associated with *state*. This implementation returns the state itself for both components. This method can be overridden in a subclass or instantiated at runtime.
+    """
+#--------------------------------------------------------------------------------------------------
+    return state,state
+
   jacobian = None
+  r"""The derivative of function :math:`F` defining the ODE as :math:`J(t,s)_{uv}=\frac{\partial F_u}{\partial s_v}(t,s)`\, or :const:`None` if the Jacobian is too costly to compute (it is only used as an optimisation by the ODE solver). If the state space is of dimension :math:`d`\, then the Jacobian must be of dimension :math:`d\times d`\."""
+
   integrator = dict(name='lsoda')
-  shadowshape = (2,)
+  r"""A :class:`dict` instance describing the integrator to use (see :class:`scipy.integrate.ode`)"""
+
+  shadowshape = ()
+  r"""The shape (tuple of :class:`int` values) of the shadow display information to be buffered at each step. This attribute can be overridden in a subclass or instantiated at runtime."""
 
 #--------------------------------------------------------------------------------------------------
   def runstep(self,ini,srate,maxtime=infty):
