@@ -60,7 +60,7 @@ Returns the pair of the live and shadow display information associated with *sta
     return state,state
 
   jacobian = None
-  r"""The derivative of function :math:`F` defining the ODE as :math:`J(t,s)_{uv}=\frac{\partial F_u}{\partial s_v}(t,s)`\, or :const:`None` if the Jacobian is too costly to compute (it is only used as an optimisation by the ODE solver). If the state space is of dimension :math:`d`\, then the Jacobian must be of dimension :math:`d\times d`\."""
+  r"""The derivative w.r.t. state of function :math:`F` defining the ODE as :math:`J(t,s)_{uv}=\frac{\partial F_u}{\partial s_v}(t,s)`\, or :const:`None` if the Jacobian is too costly to compute (it is only used as an optimisation by the ODE solver). If the state space is of dimension :math:`d`\, then the Jacobian must be of dimension :math:`d\times d`\."""
 
   integrator = dict(name='lsoda')
   r"""A :class:`dict` instance configuring the integrator to use (see :class:`scipy.integrate.ode`)"""
