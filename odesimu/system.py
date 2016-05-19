@@ -6,13 +6,14 @@ logger = logging.getLogger(__name__)
 from numpy import zeros, nan, infty
 from scipy.integrate import ode
 from functools import partial
+from ..util import HelpPlugin
 
 """
 This module provides tools to easily implement simulations of dynamical systems defined by ODE's.
 """
 
 #==================================================================================================
-class System:
+class System (HelpPlugin):
   r"""
 Objects of this class represent abstract dynamical systems (in physics, electronics, hydraulics etc.) governed by an ordinary differential equation (ODE):
 
@@ -66,9 +67,6 @@ Returns the pair of the live and shadow display information associated with *sta
 
   shadowshape = ()
   r"""The shape (tuple of :class:`int` values) of the shadow display information to be buffered at each step. This attribute can be overridden in a subclass or instantiated at runtime."""
-
-  launchdefaults = {}
-  r"""A :class:`dict` instance configuring the :meth:`launch` method"""
 
 #--------------------------------------------------------------------------------------------------
   def runstep(self,ini,srate,maxtime=infty):
@@ -167,10 +165,25 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
 #--------------------------------------------------------------------------------------------------
     from matplotlib.pyplot import figure
     from matplotlib.animation import FuncAnimation
+    def config(ka,model):
+      for k,v in model.items():
+        if isinstance(v,dict): config(ka.setdefault(k,{}),v)
+        else: ka.setdefault(k,v)
     if isinstance(fig,dict): fig = figure(**fig)
-    for k,v in self.launchdefaults.items(): ka.setdefault(k,v)
+    config(ka,self.launchdefaults)
     animate = ka.pop('animate')
     return self.display(fig.add_axes((0,0,1,1),aspect='equal'),animate=partial(FuncAnimation,**animate),**ka)
+
+  launchdefaults = dict(maxtime=infty,srate=25.,animate=dict(repeat=False))
+  r"""A :class:`dict` instance configuring the :meth:`launch` method"""
+
+  Help = '''
+    launch/ini: initial state
+    launch/taild [sec]: shadow duration
+    launch/srate [sec^-1]: sampling rate
+    launch/hooks: list of display hooks,
+    launch/maxtime [sec]: simulation time
+  '''
 
 #==================================================================================================
 def marker_hook(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):

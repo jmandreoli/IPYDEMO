@@ -4,9 +4,10 @@ logger = logging.getLogger(__name__)
 from numpy import array, sqrt, zeros, ones, seterr, abs, nan, linspace, newaxis
 from itertools import islice
 from .util import MultizoomAnimation
+from ..util import HelpPlugin
 
 #==================================================================================================
-class Fractal:
+class Fractal (HelpPlugin):
   r"""
 :param main: a generator function (see below)
 :param eradius: escape radius of the sequence defining this fractal object
@@ -118,3 +119,11 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
 
   launchdefaults = dict(itermax=1000,resolution=160000,interval=100,repeat=False)
   r"""A :class:`dict` instance configuring the :meth:`launch` method"""
+
+  Help = '''
+    /eradius: escape radius
+    /ibounds: area of interest of the fractal as a pair (xbounds,ybounds)
+    launch/itermax: stop refining precision after that number of steps
+    launch/resolution: number of points at any zooming level
+    launch/interval [msec]: time interval between two precision steps
+  '''

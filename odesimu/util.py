@@ -131,4 +131,3 @@ Allows the logging level of *logger* to be controlled through the keyboard: when
     lvl = D.get(ev.key)
     if lvl is not None: logger.setLevel(lvl)
   ax.figure.canvas.mpl_connect('key_press_event',set)
-
