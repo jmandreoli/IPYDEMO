@@ -10,7 +10,13 @@ Add this plugin to the inheritance hierarchy of a class and configure a class at
 
   Help = ''
   Help_ = None
-  r"""Should contain a list of triples, where each triple consists of a topic string, a unit, and help string. The unit is itself either :const:`None` or a list of pairs, where each pair consists of the name of a unit and an exponent."""
+  r"""A help text decribing the arguments of end-user methods. Syntax is still under construction. Currently:
+<helper> = <param> '*'
+<param> = <head> ( '[' <unit> ']' )? ':' <body>
+<unit> = <basic-unit> ( '.' <basic-unit> )*
+<basic-unit> = <unit-name> ( '^' <exponent> )
+<head>, <body>, <unit-name>, <exponent> = string
+  """
 
 #--------------------------------------------------------------------------------------------------
   @classmethod
