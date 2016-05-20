@@ -122,11 +122,11 @@ Objects of this class implement rudimentary PID controllers.
     self.reset = reset
 
   Help = '''
-    gP: proportional gain
-    gI: integration gain
-    gD: derivation gain
-    observe: a function taking a state as input and returning an observation of that state
-    target: a function of time indicating the target value to reach
+    /gP: proportional gain
+    /gI: integration gain
+    /gD: derivation gain
+    /observe: a function taking a state as input and returning an observation of that state
+    /target: a function of time indicating the target value to reach
   '''
 
 #==================================================================================================

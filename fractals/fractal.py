@@ -121,9 +121,9 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
   r"""A :class:`dict` instance configuring the :meth:`launch` method"""
 
   Help = '''
-    /eradius: escape radius
+    /eradius: escape radius of the fractal
     /ibounds: area of interest of the fractal as a pair (xbounds,ybounds)
-    launch/itermax: stop refining precision after that number of steps
-    launch/resolution: number of points at any zooming level
-    launch/interval [msec]: time interval between two precision steps
+    launch/itermax: bound on the number of precision iteration steps
+    launch/resolution: number of points used at any zooming level
+    launch/interval [msec]: time interval between two precision iteration steps
   '''
