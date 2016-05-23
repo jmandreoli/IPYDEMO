@@ -11,11 +11,14 @@ Add this plugin to the inheritance hierarchy of a class and configure a class at
   Help = ''
   Help_ = None
   r"""A help text decribing the arguments of end-user methods. Syntax is still under construction. Currently:
-<helper> = <param> '*'
-<param> = <head> ( '[' <unit> ']' )? ':' <body>
-<unit> = <basic-unit> ( '.' <basic-unit> )*
-<basic-unit> = <unit-name> ( '^' <exponent> )
-<head>, <body>, <unit-name>, <exponent> = string
+<helper> = ( ( <param> | <space> ) '\n' )*
+<param> = <qual>? '/' <head>  ( <space> '[' <unit> ( '.' <unit> )* ']' )? ':' <space> <body>
+<unit> = <unit-name> ( '^' <exponent> )
+<qual>, <head> = python identifier
+<unit-name> = non empty string of letters
+<exponent> = non empty string of digits, possibly prefixed with the negative sign
+<body> = non empty string not starting with a space and not containing \n
+<space> = non empty string containing only spaces other than \n
   """
 
 #--------------------------------------------------------------------------------------------------
