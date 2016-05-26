@@ -53,8 +53,8 @@ def parse(cls,pat=re.compile(r'(\S+)(?:\s+\[(\S+)\])?:\s+(\S.*)')):
     L[a][p] = h
   D = {}
   D[''] = '\n'.join(a+'\n'+'\n'.join('\t{}{}: {}'.format(p,g_unit(u),h) for p,(u,h) in P.items()) for a,P in L.items())
-  D['latex'] = latexlist(latexesc(a)+'\n'+latexlist('{}{}: {}'.format(latexesc(p),g_unit(u,superscript='$^{}$'),h) for p,(u,h) in P.items()) for a,P in L.items())
-  D['html'] = '<table style="background-color: white; color: black;"><tbody>{}</tbody></table>'.format(''.join('<tr style="background-color: gray; color: white;"><th colspan="3">{}</th></tr>{}'.format(a,''.join('<tr><th>{}</th><td>{}</td><td>{}</td></tr>'.format(p,g_unit(u,superscript='<sup>{}</sup>',fmt='{}'),h) for p,(u,h) in P.items())) for a,P in L.items()))
+  D['latex'] = latexlist(latexesc(a)+'\n'+latexlist('{}{}: {}'.format(latexesc(p),g_unit(u,superscript='$^{}$'),latexesc(h)) for p,(u,h) in P.items()) for a,P in L.items())
+  D['html'] = '<table style="background-color: white; color: black;"><tbody>{}</tbody></table>'.format(''.join('<tr style="background-color: gray; color: white;"><th colspan="3">{}</th></tr>{}'.format(a,''.join('<tr><th>{}</th><td>{}</td><td>{}</td></tr>'.format(p,g_unit(u,superscript='<sup>{}</sup>',fmt='{}'),htmlesc(h)) for p,(u,h) in P.items())) for a,P in L.items()))
   return D
 
 def g_unit(u,superscript='^{}',fmt=' ({})'):
@@ -63,6 +63,8 @@ def g_unit(u,superscript='^{}',fmt=' ({})'):
 def p_unit(u):
   return None if u is None else tuple((x+(1,) if len(x)==1 else x) for x in (tuple(x.split('^',1)) for x in u.split('.')))
 
-def latexesc(x): return x.replace('_',r'\_')
+def latexesc(x): return x.replace('\\','\\\\').replace('_','\\_')
 
 def latexlist(L): return '\\begin{{itemize}}\n{}\n\\end{{itemize}}'.format('\n'.join('\item {}'.format(x) for x in L))
+
+def htmlesc(x): return x.replace('&','&amp;').replace('<','&lt;').replace('>','&gt;')
