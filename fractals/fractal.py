@@ -94,9 +94,8 @@ Displays this fractal, initially zooming on *ibounds*, and allows multizoom navi
       return islice(((tmap,bounds) for tmap in self.temperature(grid)),itermax)
     def disp_(frm,interrupt=False):
       tmap,bounds = frm
-      if interrupt:
-        img.set_array(tmap)
-        img.set_extent(bounds[0]+bounds[1])
+      img.set_array(tmap)
+      if interrupt: img.set_extent(bounds[0]+bounds[1])
       img.changed()
       return img,
     return MultizoomAnimation(ax,disp_,frames=frames,init_func=(lambda: None),**ka)
