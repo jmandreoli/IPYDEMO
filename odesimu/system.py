@@ -3,17 +3,16 @@ __all__ = 'System', 'marker_hook'
 import logging
 logger = logging.getLogger(__name__)
 
+from functools import partial
 from numpy import zeros, nan, infty
 from scipy.integrate import ode
-from functools import partial
-from ..util import HelpPlugin
 
 """
 This module provides tools to easily implement simulations of dynamical systems defined by ODE's.
 """
 
 #==================================================================================================
-class System (HelpPlugin):
+class System:
   r"""
 Objects of this class represent abstract dynamical systems (in physics, electronics, hydraulics etc.) governed by an ordinary differential equation (ODE):
 
@@ -170,20 +169,24 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
         if isinstance(v,dict): config(ka.setdefault(k,{}),v)
         else: ka.setdefault(k,v)
     if isinstance(fig,dict): fig = figure(**fig)
-    config(ka,self.launchdefaults)
-    animate = ka.pop('animate')
-    return self.display(fig.add_axes((0,0,1,1),aspect='equal'),animate=partial(FuncAnimation,**animate),**ka)
+    for k,v in self.launchdefaults.items(): ka.setdefault(k,v)
+    animate = ka.pop('animate',{})
+    return self.display(fig.add_axes((0,0,1,1),aspect='equal'),animate=partial(FuncAnimation,repeat=False,**animate),**ka)
 
-  launchdefaults = dict(maxtime=infty,srate=25.,animate=dict(repeat=False))
-  r"""A :class:`dict` instance configuring the :meth:`launch` method"""
+  launchdefaults = dict(maxtime=infty,srate=25.)
+  Help = (
+    ('maxtime','total simulation time length [sec]'),
+    ('srate','sampling rate [sec^-1]'),
+    ('taild','shadow duration [sec]'),
+    ('hooks','tuple of display hooks'),
+  )
 
-  Help = '''
-    launch/ini: initial state
-    launch/taild [sec]: shadow duration
-    launch/srate [sec^-1]: sampling rate
-    launch/hooks: list of display hooks,
-    launch/maxtime [sec]: simulation time
-  '''
+  @classmethod
+  def launchhelp(cls):
+    def dflt(k,D=cls.launchdefaults):
+      v = D.get(k)
+      return '' if v is None else str(v) if len(str(v))<10 else '...'
+    return '\n'.join('{:15}{:10}{}'.format(k,dflt(k),h) for k,h in cls.Help)
 
 #==================================================================================================
 def marker_hook(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):
@@ -198,4 +201,3 @@ A display hook which displays a single marker whose position at time *t* is give
   for k,v in _dflt: ka.setdefault(k,v)
   trg_s = ax.scatter((0,),(0,),**ka)
   return lambda t: trg_s.set_offsets((f(t),))
-

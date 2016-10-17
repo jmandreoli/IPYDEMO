@@ -1,18 +1,18 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from numpy import array, sqrt, zeros, ones, seterr, abs, nan, linspace, newaxis
 from itertools import islice
+from numpy import array, sqrt, zeros, ones, seterr, abs, nan, linspace, newaxis
 from .util import MultizoomAnimation
-from ..util import HelpPlugin
 
 #==================================================================================================
-class Fractal (HelpPlugin):
+class Fractal:
   r"""
 :param main: a generator function (see below)
 :param eradius: escape radius of the sequence defining this fractal object
 :type eradius: :class:`float`
 :param ibounds: area of interest of this fractal object, as a bounding box
+:type ibounds: pair(pair(:class:`float`))
 
 Objects of this class represent abstract fractals, defined by two functions :math:`u:\mathbb{C}\mapsto\mathbb{C}` and :math:`v:\mathbb{C}\times\mathbb{C}\mapsto\mathbb{C}` as the set of complex numbers :math:`c` such that the sequence
 
@@ -42,7 +42,7 @@ Attributes and methods:
     r"""
 :param grid: an array of complex numbers
 
-Successively yields the "temperature" grid :math:`\theta_n(c)` taken on all the elements :math:`c` of *grid* for :math:`n=0\ldots\infty`, where
+Successively yields the "temperature" grid :math:`\theta_n(c)` taken on all the points :math:`c` in *grid* for :math:`n=0\ldots\infty`, where
 
 .. math::
 
@@ -71,13 +71,13 @@ In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the 
       yield tmap
 
 #--------------------------------------------------------------------------------------------------
-  def display(self,ax,itermax=None,resolution=None,ibounds=None,**ka):
+  def display(self,ax,maxiter=None,resolution=None,ibounds=None,**ka):
     r"""
 :param ax: matplotlib axes on which to display
 :type ax: :class:`matplotlib.Axes` instance
-:param itermax: max number of iterations (precision is increased at each iteration)
-:type itermax: :class:`int`
-:param resolution: number of points to display
+:param maxiter: max number of iterations (precision is increased at each iteration)
+:type maxiter: :class:`int`
+:param resolution: number of pixels to display
 :type resolution: :class:`int`
 :param ibounds: bounding box for the initial zoom (defaults to the area of interest)
 
@@ -91,7 +91,7 @@ Displays this fractal, initially zooming on *ibounds*, and allows multizoom navi
       r = (xb[1]-xb[0])/(yb[1]-yb[0])
       Nx = int(sqrt(resolution/r)); Ny = int(resolution/Nx)
       grid = array(linspace(xb[0],xb[1],Ny),dtype=complex)[newaxis,:]+1.j*array(linspace(yb[0],yb[1],Nx),dtype=complex)[:,newaxis]
-      return islice(((tmap,bounds) for tmap in self.temperature(grid)),itermax)
+      return islice(((tmap,bounds) for tmap in self.temperature(grid)),maxiter)
     def disp_(frm,interrupt=False):
       tmap,bounds = frm
       img.set_array(tmap)
@@ -114,15 +114,18 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
     from matplotlib.animation import FuncAnimation
     if isinstance(fig,dict): fig = figure(**fig)
     for k,v in self.launchdefaults.items(): ka.setdefault(k,v)
-    return self.display(fig.add_axes((0,0,1,1),xticks=(),yticks=()),**ka)
+    return self.display(fig.add_axes((0,0,1,1),xticks=(),yticks=()),repeat=False,**ka)
 
-  launchdefaults = dict(itermax=1000,resolution=160000,interval=100,repeat=False)
-  r"""A :class:`dict` instance configuring the :meth:`launch` method"""
+  launchdefaults = dict(maxiter=1000,resolution=160000,interval=100)
+  Help = (
+    ('maxiter','max number of iterations'),
+    ('resolution','number of pixels to display'),
+    ('interval','inter-frame time [msec]'),
+  )
 
-  Help = '''
-    /eradius: escape radius of the fractal
-    /ibounds: area of interest of the fractal as a pair (xbounds,ybounds)
-    launch/itermax: bound on the number of precision iteration steps
-    launch/resolution: number of points used at any zooming level
-    launch/interval [msec]: time interval between two precision iteration steps
-  '''
+  @classmethod
+  def help(cls):
+    def dflt(k,D=cls.launchdefaults):
+      v = D.get(k)
+      return '' if v is None else str(v)
+    return '\n'.join('{:15}{:10}{}'.format(k,dflt(k),h) for k,h in cls.Help)

@@ -6,7 +6,6 @@ logger = logging.getLogger(__name__)
 from numpy import zeros, infty, linspace, hstack, exp, infty, newaxis, digitize, eye
 from numpy.random import uniform
 from functools import wraps
-from ..util import HelpPlugin
 
 #==================================================================================================
 def buffered(T=None,N=None,bufferException=type('bufferException',(Exception,),{})):
@@ -92,9 +91,14 @@ Objects of this class implement piecewise constant functions which are dynamical
   def __call__(self,t): return self.call(t)
 
 #==================================================================================================
-class PIDController (DPiecewiseFunc,HelpPlugin):
+class PIDController (DPiecewiseFunc):
   r"""
 Objects of this class implement rudimentary PID controllers.
+
+:param gP,gI,gD: proportional, integration, derivation gain
+:type gP,gI,gD: :class:`float`
+:param observe: a function of state returning an observation of that state
+:param target: a function of time indicating the target value to reach
   """
 #==================================================================================================
   def __init__(self,gP=0.,gI=0.,gD=0.,observe=None,target=None,**ka):
@@ -120,14 +124,6 @@ Objects of this class implement rudimentary PID controllers.
       r = -gP*v
       reset(r)
     self.reset = reset
-
-  Help = '''
-    /gP: proportional gain
-    /gI: integration gain
-    /gD: derivation gain
-    /observe: a function taking a state as input and returning an observation of that state
-    /target: a function of time indicating the target value to reach
-  '''
 
 #==================================================================================================
 def logger_hook(ax,logger,prefix='alt+'):
