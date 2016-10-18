@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 from functools import partial
 from numpy import zeros, nan, infty
 from scipy.integrate import ode
+from ..util import set_defaults, set_helper
 
 """
 This module provides tools to easily implement simulations of dynamical systems defined by ODE's.
@@ -153,6 +154,13 @@ When the ratio is below one, the simulation clock is adjusted to be a real clock
     return info
 
 #--------------------------------------------------------------------------------------------------
+  @set_helper(
+    'maxtime: total simulation time length [sec]',
+    'srate: sampling rate [sec^-1]',
+    'taild: shadow duration [sec]',
+    'hooks: tuple of display hooks',
+  )
+  @set_defaults(maxtime=infty,srate=25.)
   def launch(self,fig=dict(figsize=(9,9)),**ka):
     r"""
 :param animate: animation optional parameters (as a dictionary)
@@ -164,22 +172,9 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
 #--------------------------------------------------------------------------------------------------
     from matplotlib.pyplot import figure
     from matplotlib.animation import FuncAnimation
-    def config(ka,model):
-      for k,v in model.items():
-        if isinstance(v,dict): config(ka.setdefault(k,{}),v)
-        else: ka.setdefault(k,v)
     if isinstance(fig,dict): fig = figure(**fig)
-    for k,v in self.launchdefaults.items(): ka.setdefault(k,v)
     animate = ka.pop('animate',{})
     return self.display(fig.add_axes((0,0,1,1),aspect='equal'),animate=partial(FuncAnimation,repeat=False,**animate),**ka)
-
-  launchdefaults = dict(maxtime=infty,srate=25.)
-  Help = (
-    ('maxtime','total simulation time length [sec]'),
-    ('srate','sampling rate [sec^-1]'),
-    ('taild','shadow duration [sec]'),
-    ('hooks','tuple of display hooks'),
-  )
 
   @classmethod
   def launchhelp(cls):
