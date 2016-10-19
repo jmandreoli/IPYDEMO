@@ -4,6 +4,7 @@ logger = logging.getLogger(__name__)
 from itertools import islice
 from numpy import array, sqrt, zeros, ones, seterr, abs, nan, linspace, newaxis
 from .util import MultizoomAnimation
+from ..util import Setup
 
 #==================================================================================================
 class Fractal:
@@ -32,6 +33,11 @@ Attributes and methods:
   """
 #==================================================================================================
 
+  @Setup(
+    'main: generator of fractal views at increasing precision',
+    'eradius: escape radius of the fractal',
+    'ibounds: area of interest of the fractal',
+  )
   def __init__(self,main,eradius=None,ibounds=None):
     self.main = main
     self.eradius = eradius
@@ -101,6 +107,12 @@ Displays this fractal, initially zooming on *ibounds*, and allows multizoom navi
     return MultizoomAnimation(ax,disp_,frames=frames,init_func=(lambda: None),**ka)
 
 #--------------------------------------------------------------------------------------------------
+  @Setup(
+    'maxiter: max number of iterations',
+    'resolution: number of pixels to display',
+    'interval: inter-frame time [msec]',
+    maxiter=1000,resolution=160000,interval=100
+  )
   def launch(self,fig=dict(figsize=(8,8)),**ka):
     r"""
 :param animate: animation optional parameters (as a dictionary)
@@ -113,19 +125,4 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
     from matplotlib.pyplot import figure
     from matplotlib.animation import FuncAnimation
     if isinstance(fig,dict): fig = figure(**fig)
-    for k,v in self.launchdefaults.items(): ka.setdefault(k,v)
     return self.display(fig.add_axes((0,0,1,1),xticks=(),yticks=()),repeat=False,**ka)
-
-  launchdefaults = dict(maxiter=1000,resolution=160000,interval=100)
-  Help = (
-    ('maxiter','max number of iterations'),
-    ('resolution','number of pixels to display'),
-    ('interval','inter-frame time [msec]'),
-  )
-
-  @classmethod
-  def help(cls):
-    def dflt(k,D=cls.launchdefaults):
-      v = D.get(k)
-      return '' if v is None else str(v)
-    return '\n'.join('{:15}{:10}{}'.format(k,dflt(k),h) for k,h in cls.Help)

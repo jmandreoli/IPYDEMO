@@ -6,6 +6,7 @@ logger = logging.getLogger(__name__)
 from numpy import zeros, infty, linspace, hstack, exp, infty, newaxis, digitize, eye
 from numpy.random import uniform
 from functools import wraps
+from ..util import Setup
 
 #==================================================================================================
 def buffered(T=None,N=None,bufferException=type('bufferException',(Exception,),{})):
@@ -43,7 +44,7 @@ def blurred(level=None,M=1000,shape=(1,),ident=lambda f: f):
   r"""
 :param level: the degree of blurring, as a positive number.
 
-A functor (decorator) which applies a multiplicative noise to a function. The multiplicative coefficient follows a log-uniform distribution between -*level* and *level*\. Two invocations of the blurred function, whether they have the same argument or not, are blurred independently.
+A functor (decorator) which applies a multiplicative noise to a function. The multiplicative coefficient follows a log-uniform distribution between -*level* and *level*. Two invocations of the blurred function, whether they have the same argument or not, are blurred independently.
   """
 #==================================================================================================
   if not level: return ident
@@ -60,10 +61,15 @@ A functor (decorator) which applies a multiplicative noise to a function. The mu
 class DPiecewiseFuncException(Exception): pass
 class DPiecewiseFunc:
   r"""
-Objects of this class implement piecewise constant functions which are dynamically constructed. Whenever a new change point is inserted, it must be greater than all the previous change points and all the arguments at which the function has already been evaluated, otherwise, an :class:`Exception` is raised.
+Objects of this class implement piecewise constant functions which are dynamically constructed.
+
+:param N: size of the buffer of change points
+:param v: default value
+
+Initially, the function is the constant function with value *v*. Whenever a new change point is inserted, it must be greater than all the previous change points and all the arguments at which the function has already been evaluated, otherwise, an exception is raised. When the buffer is exceeded, old change points are forgotten and any attempt to evaluate the function before or at those old change points raises an exception.
   """
 #==================================================================================================
-  def __init__(self,N=None,v=None):
+  def __init__(self,N,v):
     K, = v.shape
     self.changepoint = zeros((N,))
     self.value = zeros((N,)+v.shape)
@@ -76,12 +82,18 @@ Objects of this class implement piecewise constant functions which are dynamical
     self.call = call
 
   def reset(self,v=None):
+    r"""
+(Re)initialises this function. Must always be called once before use.
+    """
     if v is None: v = self.default
     self.changepoint[:] = -infty
     self.value[...] = v[newaxis,:]
     self.tmax = -infty
 
   def update(self,t,v):
+    r"""
+Sets a new change point at time *t* with value *v* on the right of *t*.
+    """
     if t<self.tmax: raise DPiecewiseFuncException('obsolete update',t)
     self.changepoint[:-1] = self.changepoint[1:]
     self.value[:-1] = self.value[1:]
@@ -97,13 +109,22 @@ Objects of this class implement rudimentary PID controllers.
 
 :param gP,gI,gD: proportional, integration, derivation gain
 :type gP,gI,gD: :class:`float`
-:param observe: a function of state returning an observation of that state
+:param observe: a function of state returning an observation of that state, or a default observation if passed :const:`None`
 :param target: a function of time indicating the target value to reach
+
+An instance of this class defines the control as a piecewise constant function. Each new change point must be inserted with the state of the system at that time, and the new control is computed only from the value of function *observe* applied to that state. The new control is based on the difference between the observed value and the value of function *target* at the time change, using the PID scheme.
   """
 #==================================================================================================
-  def __init__(self,gP=0.,gI=0.,gD=0.,observe=None,target=None,**ka):
+  @Setup(
+    'N: size of the control buffer',
+    'gP,gI,gD: control gains',
+    'observe: observation function',
+    'target: target function',
+    gP=0.,gI=0.,gD=0.
+  )
+  def __init__(self,gP,gI,gD,observe,target,**ka):
     v0 = observe()
-    super(PIDController,self).__init__(v=v0,**ka)
+    super().__init__(v=v0,**ka)
     R = eye(len(v0.shape))
     last = None
     intg = zeros(v0.shape)

@@ -6,7 +6,7 @@ logger = logging.getLogger(__name__)
 from functools import partial
 from numpy import zeros, nan, infty
 from scipy.integrate import ode
-from ..util import set_defaults, set_helper
+from ..util import Setup
 
 """
 This module provides tools to easily implement simulations of dynamical systems defined by ODE's.
@@ -154,13 +154,14 @@ When the ratio is below one, the simulation clock is adjusted to be a real clock
     return info
 
 #--------------------------------------------------------------------------------------------------
-  @set_helper(
+  @Setup(
     'maxtime: total simulation time length [sec]',
     'srate: sampling rate [sec^-1]',
     'taild: shadow duration [sec]',
     'hooks: tuple of display hooks',
+    'ini: initial state',
+    maxtime=infty,srate=25.
   )
-  @set_defaults(maxtime=infty,srate=25.)
   def launch(self,fig=dict(figsize=(9,9)),**ka):
     r"""
 :param animate: animation optional parameters (as a dictionary)
@@ -175,13 +176,6 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
     if isinstance(fig,dict): fig = figure(**fig)
     animate = ka.pop('animate',{})
     return self.display(fig.add_axes((0,0,1,1),aspect='equal'),animate=partial(FuncAnimation,repeat=False,**animate),**ka)
-
-  @classmethod
-  def launchhelp(cls):
-    def dflt(k,D=cls.launchdefaults):
-      v = D.get(k)
-      return '' if v is None else str(v) if len(str(v))<10 else '...'
-    return '\n'.join('{:15}{:10}{}'.format(k,dflt(k),h) for k,h in cls.Help)
 
 #==================================================================================================
 def marker_hook(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):
