@@ -154,7 +154,7 @@ When the ratio is below one, the simulation clock is adjusted to be a real clock
     return info
 
 #--------------------------------------------------------------------------------------------------
-  @Setup(
+  @Setup.abstract(
     'maxtime: total simulation time length [sec]',
     'srate: sampling rate [sec^-1]',
     'taild: shadow duration [sec]',
