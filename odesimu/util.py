@@ -69,7 +69,7 @@ Objects of this class implement piecewise constant functions which are dynamical
 Initially, the function is the constant function with value *v*. Whenever a new change point is inserted, it must be greater than all the previous change points and all the arguments at which the function has already been evaluated, otherwise, an exception is raised. When the buffer is exceeded, old change points are forgotten and any attempt to evaluate the function before or at those old change points raises an exception.
   """
 #==================================================================================================
-  @Setup.abstract(
+  @Setup(
     'N: size of the buffer of change points',
   )
   def __init__(self,N,v):
