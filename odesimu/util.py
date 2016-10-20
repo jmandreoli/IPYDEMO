@@ -117,7 +117,9 @@ An instance of this class defines the control as a piecewise constant function. 
 #==================================================================================================
   @Setup(
     'N: size of the control buffer',
-    'gP,gI,gD: control gains',
+    'gP: control gain (proportional)',
+    'gI: control gain (integral)',
+    'gD: control gain (derivative)',
     'observe: observation function',
     'target: target function',
     gP=0.,gI=0.,gD=0.
