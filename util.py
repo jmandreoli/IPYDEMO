@@ -27,14 +27,13 @@ class display:
     def row(f,H,D):
       yield E.TR(E.TD(pname(f),colspan='4',style='background-color: gray; color: white; font-weight: bold;'))
       for argn,(txt,unit) in H.items():
-        yield E.TR(E.TH(argn),E.TD((repr(D[argn]) if argn in D else ''),style='max-width:2cm; white-space: nowrap; overflow: hidden'),E.TD(txt),E.TD(*uncomp(unit)))
+        dv = repr(D[argn]) if argn in D else ''
+        yield E.TR(E.TH(argn),E.TD(dv,style='max-width:2cm; white-space: nowrap; overflow: hidden',title=dv),E.TD(txt),E.TD(*uncomp(unit)))
     def uncomp(u):
-      sep = None
       for base,expn in u:
-        if sep is not None: yield sep
+        yield ' '
         yield E.SPAN(base)
         if expn!=1: yield E.SUP(str(expn))
-        sep = ' '
     return tostring(E.TABLE(E.TBODY(*rows(self.L,row))),encoding='unicode')
 
   def __repr__(self):
