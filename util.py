@@ -8,7 +8,7 @@ def Setup(*H,**D):
       g = upat.fullmatch(x).groups()
       return g[0],(1 if g[1] is None else int(g[1]))
     g = pat.fullmatch(h.strip()).groups()
-    return g[0],(g[1],(() if g[2] is None else tuple(unit(x) for x in g[2].split('.'))))
+    return tuple(g[0].split(',')),(g[1],(() if g[2] is None else tuple(unit(x) for x in g[2].split('.'))))
   def tr(f):
     assert inspect.isfunction(f)
     F = (lambda F: wraps(f)(lambda *a,**ka: F(*a,**ka)))(partial(f,**D)) if D else f
@@ -27,8 +27,8 @@ class display:
     def row(f,H,D):
       yield E.TR(E.TD(pname(f),colspan='4',style='background-color: gray; color: white; font-weight: bold;'))
       for argn,(txt,unit) in H.items():
-        dv = repr(D[argn]) if argn in D else ''
-        yield E.TR(E.TH(argn),E.TD(dv,style='max-width:2cm; white-space: nowrap; overflow: hidden',title=dv),E.TD(txt),E.TD(*uncomp(unit)))
+        dv = ','.join(repr(D[a]) if a in D else '' for a in argn) if any(a in D for a in argn) else ''
+        yield E.TR(E.TH(','.join(argn)),E.TD(dv,style='max-width:2cm; white-space: nowrap; overflow: hidden',title=dv),E.TD(txt),E.TD(*uncomp(unit)))
     def uncomp(u):
       for base,expn in u:
         yield ' '
@@ -40,9 +40,9 @@ class display:
     def row(f,H,D,trim=(lambda x: repr(x)[:10])):
       yield '**** {} ****'.format(pname(f))
       for argn,(txt,unit) in H.items():
-        dv = '({:10})'.format(trim(D[argn])) if argn in D else ''
+        dv = '({:10})'.format(','.join(trim(D[a]) if a in D else '' for a in argn)) if any(a in D for a in argn) else ''
         unit = '' if unit is None else ' [{}]'.format('.'.join('{}{}'.format(x[0],('^{}'.format(x[1]) if x[1]!=1 else '')) for x in unit))
-        yield '    {:10}{}: {}{}'.format(argn,dv,txt,unit)
+        yield '    {:10}{}: {}{}'.format(','.join(argn),dv,txt,unit)
     return '\n'.join(rows(self.L,row))
 
 Setup.display = display

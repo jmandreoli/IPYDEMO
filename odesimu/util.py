@@ -119,9 +119,7 @@ An instance of this class defines the control as a piecewise constant function. 
   """
 #==================================================================================================
   @Setup(
-    'gP: control gain (proportional)',
-    'gI: control gain (integral)',
-    'gD: control gain (derivative)',
+    'gP,gI,gD: control gains (proportional, integral, derivative)',
     'observe: observation function',
     'target: target function',
     gP=0.,gI=0.,gD=0.
