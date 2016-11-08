@@ -14,7 +14,10 @@ def buffered(T=None,N=None,bufferException=type('bufferException',(Exception,),{
 :param T: size of the interval over which buffering is performed
 :param N: number of samples taken over that interval
 
-A functor (decorator) which allows limited buffering of a function. For each interval of length *T* of the argument, the values of the function are buffered at *N* equidistant samples and interpolated if necessary. At any time, two adjacent intervals are kept in the buffer. If an invocation is requested for an argument outside these two intervals, it must be in the next interval of length *T*\, which becomes the new right-most interval of the buffer and the previous left-most interval is dropped. Otherwise, an :class:`Exception` is raised.
+A functor (decorator) which allows limited buffering of a function over the positive reals. The set of positive reals is partitioned into contiguous intervals of length *T* called bins. At any time, two adjacent bins are kept in a buffer, starting with the leftmost two bins. For each buffer bin, the values of the function over that bin are pre-computed at *N* equidistant samples.
+
+* If an invocation is requested for an argument within the buffer, the result is computed by interpolation from the pre-computed values.
+* If an invocation is requested for an argument outside the buffer, it must be in the bin which is immediately right-adjacent to the buffer, otherwise an :class:`Exception` is raised. The buffer is then shifted one bin rightward to include the new bin and the old leftmost bin is dropped.
   """
 #==================================================================================================
   def tr(f):
@@ -26,14 +29,13 @@ A functor (decorator) which allows limited buffering of a function. For each int
     def F(t):
       nonlocal epoch
       k,dt = divmod(t,step); r=dt/step; e,n = divmod(int(k),N); de = e-epoch
-      if de==2:
-        buf[:N+1] = buf[N:]
-        buf[N:,0] += T
-        buf[N:,1:] = f(buf[N:,0:1])
-        epoch += 1
-        n += N
+      if de==0: pass
       elif de==1: n += N
-      elif de<0: raise bufferException(de)
+      elif de==2:
+        buf[:N+1] = buf[N:]
+        buf[N:,0] += T; buf[N:,1:] = f(buf[N:,0:1])
+        epoch += 1; n += N
+      else: raise bufferException(de)
       v = buf[n:n+2,1:]
       return r*v[0]+(1.-r)*v[1]
     return F
@@ -101,7 +103,7 @@ Sets a new change point at time *t* with value *v* on the right of *t*.
     self.changepoint[:-1] = self.changepoint[1:]
     self.value[:-1] = self.value[1:]
     self.changepoint[-1] = t
-    self.value[-1,...] = v
+    self.value[-1] = v
 
   def __call__(self,t): return self.call(t)
 
@@ -110,12 +112,12 @@ class PIDController (DPiecewiseFunc):
   r"""
 Objects of this class implement rudimentary PID controllers.
 
-:param gP,gI,gD: proportional, integration, derivation gain
+:param gP,gI,gD: proportional, integration, derivative gain
 :type gP,gI,gD: :class:`float`
 :param observe: a function of state returning an observation of that state, or a default observation if passed :const:`None`
 :param target: a function of time indicating the target value to reach
 
-An instance of this class defines the control as a piecewise constant function. Each new change point must be inserted with the state of the system at that time, and the new control is computed only from the value of function *observe* applied to that state. The new control is based on the difference between the observed value and the value of function *target* at the time change, using the PID scheme.
+An instance of this class defines the control as a piecewise constant function. A new change point is created by invoking method :meth:`update` passing it a time *t* and state *s* of the system at that time. The associated control is based on the difference between the value of function *observe* at *s* and the value of function *target* at *t*, using the PID scheme. Change points must be inserted in chronological order.
   """
 #==================================================================================================
   @Setup(
@@ -154,8 +156,9 @@ def logger_hook(ax,logger,prefix='alt+'):
 Allows the logging level of *logger* to be controlled through the keyboard: when the canvas of *ax* has focus, pressing keys i, w, e, c while holding the *prefix* key pressed, sets the logging level to INFO, WARN, ERROR, CRITICAL respectively.
   """
 #==================================================================================================
-  D = dict((prefix+k,v) for k,v in dict(i=logging.INFO,w=logging.WARN,e=logging.ERROR,c=logging.CRITICAL).items())
-  def set(ev):
+  D = dict(i=logging.INFO,w=logging.WARN,e=logging.ERROR,c=logging.CRITICAL)
+  D = dict((prefix+k,v) for k,v in D.items())
+  def setlevel(ev):
     lvl = D.get(ev.key)
     if lvl is not None: logger.setLevel(lvl)
-  ax.figure.canvas.mpl_connect('key_press_event',set)
+  ax.figure.canvas.mpl_connect('key_press_event',setlevel)
