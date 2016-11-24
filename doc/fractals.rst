@@ -26,7 +26,7 @@ Typical output:
 Available types and functions
 -----------------------------
 
-.. automodule:: ipyshow.fractals.fractal
+.. automodule:: ipyshow.fractals
    :members:
    :member-order: bysource
    :show-inheritance:
