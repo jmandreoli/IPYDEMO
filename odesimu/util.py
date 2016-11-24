@@ -1,4 +1,12 @@
-__all__ = 'buffered', 'blurred', 'DPiecewiseFuncException', 'DPiecewiseFunc', 'PIDController', 'logger_hook'
+# File:                 odesimu/util.py
+# Creation date:        2015-03-19
+# Contributors:         Jean-Marc Andreoli
+# Language:             python
+# Purpose:              Utilities for ODE simulation
+#
+# *** Copyright (c) 2015 Xerox Corporation  ***
+# *** Xerox Research Centre Europe - Grenoble ***
+#
 
 import logging
 logger = logging.getLogger(__name__)

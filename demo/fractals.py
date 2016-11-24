@@ -12,7 +12,7 @@ if __name__=='__main__':
 #--------------------------------------------------------------------------------------------------
 from functools import partial
 from numpy import square
-from ..fractals.fractal import Fractal
+from ..fractals import Fractal
 
 @partial(Fractal,ibounds=((-2.5,1.),(-1.,1.)),eradius=2.)
 def mandelbrot(c): # note: must work as a u-func

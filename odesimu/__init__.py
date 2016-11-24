@@ -1,4 +1,12 @@
-__all__ = 'System', 'marker_hook'
+# File:                 odesimu/__init__.py
+# Creation date:        2015-03-19
+# Contributors:         Jean-Marc Andreoli
+# Language:             python
+# Purpose:              ODE simulation and visualisation
+#
+# *** Copyright (c) 2015 Xerox Corporation  ***
+# *** Xerox Research Centre Europe - Grenoble ***
+#
 
 import logging
 logger = logging.getLogger(__name__)
@@ -25,9 +33,9 @@ Objects of this class represent abstract dynamical systems (in physics, electron
 
 where :math:`s` is the state and :math:`t` is time. The ODE numerical solver used is taken from module :mod:`scipy.integrate` which assumes the state is a :class:`numpy.array` instance or a scalar. For display purposes, each state is associated with two pieces of information:
 
-* a "live" display information which the object must be capable of interpreting to actually display the state, and
+* a "live" display information which the object must be capable of interpreting to actually display its state, and
 
-* a "shadow" display information which the object buffers during a simulation and must be capable of interpreting to render a shadow of the last states.
+* a "shadow" display information which the object buffers during a simulation and must be capable of interpreting to render a shadow of its last states.
 
 Attributes and methods:
   """
@@ -60,10 +68,10 @@ Returns the pair of the live and shadow display information associated with *sta
     return state,state
 
   jacobian = None
-  r"""The derivative w.r.t. state of function :math:`F` defining the ODE as :math:`J(t,s)_{uv}=\frac{\partial F_u}{\partial s_v}(t,s)`\, or :const:`None` if the Jacobian is too costly to compute (it is only used as an optimisation by the ODE solver). If the state space is of dimension :math:`d`\, then the Jacobian must be of dimension :math:`d\times d`\."""
+  r"""The derivative w.r.t. state of function :math:`F` defining the ODE as :math:`J(t,s)_{uv}=\frac{\partial F_u}{\partial s_v}(t,s)`\, or :const:`None` if the Jacobian is too costly to compute (it is only used as an optimisation by some ODE solvers). If the state space is of dimension :math:`d`\, then the Jacobian must be of dimension :math:`d\times d`\."""
 
   integrator = dict(name='lsoda')
-  r"""A :class:`dict` instance configuring the integrator to use (see :class:`scipy.integrate.ode`)"""
+  r"""A :class:`dict` instance configuring the ODE solver to use (see :class:`scipy.integrate.ode`)"""
 
   shadowshape = ()
   r"""The shape (tuple of :class:`int` values) of the shadow display information to be buffered at each step. This attribute can be overridden in a subclass or instantiated at runtime."""
@@ -75,7 +83,7 @@ Returns the pair of the live and shadow display information associated with *sta
 :param srate: sampling rate in sec^-1
 :param maxtime: simulation time in sec (default to infinity)
 
-Runs a simulation of the system from the initial state *ini* (time 0) until *maxtime*\, sampled at rate *srate*\. The elements are returned by an iterator.
+Runs a simulation of the system from the initial state *ini* (time 0) until *maxtime*, sampled at rate *srate*. The successive states are returned by an iterator.
     """
 #--------------------------------------------------------------------------------------------------
     r = ode(self.main,self.jacobian).set_integrator(**self.integrator)
@@ -101,7 +109,7 @@ Runs a simulation of the system from the initial state *ini* (time 0) until *max
 
 Runs a simulation of the system and displays it in *ax* as an animation.
 
-This method is meant to be overridden in subclasses to perform some initialisations on *ax* and provide appropriate values for parameter *disp*\, which must be a function with three arguments: *t* (time), *live* (live display information) and *tail* (array of the shadow display information for the last *taild* seconds), and which actually performs the display.
+This method is meant to be overridden in subclasses to perform some initialisations on *ax* and provide an appropriate value for parameter *disp*, which must be a function with three arguments: *t* (time), *live* (live display information) and *tail* (array of the shadow display information for the last *taild* seconds), and which actually performs the display.
 
 A display hook is a function which is invoked once with argument *ax*, and returns a function which is invoked at each frame with its argument set to the time. Display hooks are meant to display side items other than the system.
     """

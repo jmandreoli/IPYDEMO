@@ -18,7 +18,7 @@ The following program implements the corresponding simulation.
    :language: python
    :tab-width: 2
 
-The behaviour of the system is captured by class **Pendulum**, which extends class **odesimu.system.System**. The following methods must be provided:
+The behaviour of the system is captured by class **Pendulum**, which extends class **odesimu.System**. The following methods must be provided:
 
 * **main**, which defines the ODE of the system,
 * **fordisplay**, which computes the information needed for display, and
@@ -29,7 +29,7 @@ Attribute **shadowshape**, which is the shape of the shadow information attached
 Method **display** performs the following steps:
 
 * apply various configurations to *ax*, which is an instance of **matplotlib.axes.Axes**: here, set the limits and the title, and draw the pivot and trajectory of the bob, as, in this simple example, it can easily be computed;
-* define the matplotlib artists, initially empty, capturing the dynamic components of the simulation: here *pendulum_plot* (pendulum's rod as a straight line segment), *bob_scatter* (pendulum's bob as a single point) and *shadow_plot* (shadow of the previous positions of the bob, as a curve);
+* define the matplotlib artists, initially empty, capturing the dynamic components of the simulation: here *rod_a* (pendulum's rod as a straight line segment), *bob_a* (pendulum's bob as a single point) and *shadow_a* (shadow of the buffered previous positions of the bob, as a curve);
 * define the display refresher function *disp* invoked each time a new system state is computed by the ODE solver: it updates the dynamic components of the simulation;
 * finally, invoke method **display** from the superclass, passing *ax* and *disp* as first two arguments. 
 
@@ -41,7 +41,7 @@ Typical output:
 Available types and functions
 -----------------------------
 
-.. automodule:: ipyshow.odesimu.system
+.. automodule:: ipyshow.odesimu
    :members:
    :member-order: bysource
    :show-inheritance:
