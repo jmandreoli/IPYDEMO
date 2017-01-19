@@ -73,6 +73,10 @@ Attributes:
 
    The rectangle (:class:`matplotlib.patch.Rectangle` instance) for zoom level selection. Visible at all levels of zooming except the top one, where it is visible only when selection is ongoing.
 
+.. attribute:: msize
+
+   Minimal width or height of the rectangle
+
 .. attribute:: txt
 
    A text widget (:class:`matplotlib.text.Text` instance) to display the zoom level.
@@ -105,6 +109,7 @@ Methods:
     ax.figure.canvas.mpl_connect('motion_notify_event',self.updt)
     ax.figure.canvas.mpl_connect('key_press_event',self.xlevel)
     self.rec = ax.add_patch(Rectangle((0,0),width=0,height=0,alpha=.4,color='k',visible=False,**ka))
+    self.msize = 1e-10
     self.txt = ax.text(.999,.999,'1',ha='right',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
     self.stack = [(ax.get_xlim(),ax.get_ylim())]
     self.level = 1
@@ -152,6 +157,7 @@ Finalises the rectangle capture when button 1 is released.
 #--------------------------------------------------------------------------------------------------
     if ev.inaxes != self.rec.axes or ev.button != 1 or self.bbox is None: return
     p,p1 = self.bbox
+    if abs(p1[0]-p[0])<self.msize or abs(p1[1]-p[1])<self.msize: return
     bounds = tuple(sorted((p[0],p1[0]))), tuple(sorted((p[1],p1[1])))
     del self.stack[self.level:]
     self.gc(self.level)

@@ -101,7 +101,7 @@ Displays this fractal, initially zooming on *ibounds*, and allows multizoom navi
     """
 #--------------------------------------------------------------------------------------------------
     if ibounds is None: ibounds = self.ibounds
-    img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,origin='lower',extent=ibounds[0]+ibounds[1])
+    img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,origin='lower',extent=ibounds[0]+ibounds[1],cmap='jet',interpolation='bilinear')
     def frames(bounds):
       xb, yb = bounds
       r = (xb[1]-xb[0])/(yb[1]-yb[0])
