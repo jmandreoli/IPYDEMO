@@ -4,9 +4,6 @@
 # Language:             python
 # Purpose:              Utilities for fractal display
 #
-# *** Copyright (c) 2015 Xerox Corporation  ***
-# *** Xerox Research Centre Europe - Grenoble ***
-#
 
 import logging
 logger = logging.getLogger(__name__)
