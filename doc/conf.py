@@ -15,8 +15,9 @@
 import sys
 sys.path.insert(0,'/home/andreoli/src/distrib')
 def setup(app):
-  def fixbug(app,what,name,obj, skip, options):
-    if name == 'uniform': return True
+  from inspect import isbuiltin
+  def fixbug(app,what,name,obj,skip,options):
+    if isbuiltin(obj): return True
   app.connect('autodoc-skip-member',fixbug)
 
 # If extensions (or modules to document with autodoc) are in another directory,
