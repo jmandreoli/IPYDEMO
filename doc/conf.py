@@ -13,8 +13,11 @@
 # serve to show the default.
 
 import sys
-import os
 sys.path.insert(0,'/home/andreoli/src/distrib')
+def setup(app):
+  def fixbug(app,what,name,obj, skip, options):
+    if name == 'uniform': return True
+  app.connect('autodoc-skip-member',fixbug)
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the

@@ -154,6 +154,7 @@ Finalises the rectangle capture when button 1 is released.
 #--------------------------------------------------------------------------------------------------
     if ev.inaxes != self.rec.axes or ev.button != 1 or self.bbox is None: return
     p,p1 = self.bbox
+    self.bbox = None
     if abs(p1[0]-p[0])<self.msize or abs(p1[1]-p[1])<self.msize: return
     bounds = tuple(sorted((p[0],p1[0]))), tuple(sorted((p[1],p1[1])))
     del self.stack[self.level:]
@@ -161,7 +162,6 @@ Finalises the rectangle capture when button 1 is released.
     self.stack.append(bounds)
     self.level += 1
     self.txt.set_text(str(self.level))
-    self.bbox = None
 
 #--------------------------------------------------------------------------------------------------
   def xlevel(self,ev):

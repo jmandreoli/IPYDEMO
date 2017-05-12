@@ -158,6 +158,12 @@ An instance of this class defines the control as a piecewise constant function. 
 #==================================================================================================
 def logger_hook(ax,logger,prefix='alt+'):
   r"""
+:param ax: matplotlib axes on which to display
+:type ax: :class:`matplotlib.Axes` instance
+:param logger: a logger object
+:type logger: :class:`logging.Logger`
+:param prefix: the code of a meta-key as produced by :mod:`matplotlib`
+
 Allows the logging level of *logger* to be controlled through the keyboard: when the canvas of *ax* has focus, pressing keys i, w, e, c while holding the *prefix* key pressed, sets the logging level to INFO, WARN, ERROR, CRITICAL respectively.
   """
 #==================================================================================================
@@ -167,3 +173,17 @@ Allows the logging level of *logger* to be controlled through the keyboard: when
     lvl = D.get(ev.key)
     if lvl is not None: logger.setLevel(lvl)
   ax.figure.canvas.mpl_connect('key_press_event',setlevel)
+
+#==================================================================================================
+def marker_hook(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):
+  r"""
+:param ax: matplotlib axes on which to display
+:type ax: :class:`matplotlib.Axes` instance
+:param f: a function with one parameter
+
+A display hook which displays a single marker whose position at time *t* is given by *f(t)*.
+  """
+#==================================================================================================
+  for k,v in _dflt: ka.setdefault(k,v)
+  trg_s = ax.scatter((0,),(0,),**ka)
+  return lambda t: trg_s.set_offsets((f(t),))

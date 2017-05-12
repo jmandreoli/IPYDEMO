@@ -83,12 +83,15 @@ Returns the pair of the live and shadow display information associated with *sta
 Runs a simulation of the system from the initial state *ini* (time 0) until *maxtime*, sampled at rate *srate*. The successive states are returned by an iterator.
     """
 #--------------------------------------------------------------------------------------------------
+    from time import perf_counter
     r = ode(self.main,self.jacobian).set_integrator(**self.integrator)
     dt = 1/srate
-    r.set_initial_value(ini)
+    start = perf_counter()
+    r.set_initial_value(ini,0.)
     while r.successful():
       if r.t>maxtime: return
-      yield r.t, r.y
+      yield r.t, r.y, start
+      start = perf_counter()
       r.integrate(r.t+dt)
     else: raise Exception('ODE solver failed!')
 
@@ -118,13 +121,13 @@ A display hook is a function which is invoked once with argument *ax*, and retur
     hooks = list(hook for hook in (hookf(ax) for hookf in hooks) if hook is not None)
     info = self.infohook(ax,srate)
     def disp_(frm):
-      t,state = frm
+      t,state,start = frm
       for hook in hooks: hook(t)
       live, shadow = self.fordisplay(state)
       tail[1:] = tail[:-1]
       tail[0] = shadow
       disp(t,live,tail)
-      info(t)
+      info(t,start)
     return animate(ax.figure,interval=1000./srate,frames=partial(self.runstep,srate=srate,**ka),func=disp_)
 
 #--------------------------------------------------------------------------------------------------
@@ -141,7 +144,7 @@ When the ratio is below one, the simulation clock is adjusted to be a real clock
     """
 #--------------------------------------------------------------------------------------------------
     from matplotlib.patches import Rectangle
-    from time import process_time
+    from time import perf_counter
     ax.text(0.01,0.99,'time:',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
     simclockdisp = ax.text(0.07,0.99,'',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
     simclock_format = '{:.1f}s'.format
@@ -149,10 +152,8 @@ When the ratio is below one, the simulation clock is adjusted to be a real clock
     ax.add_patch(Rectangle((.15,.99),ratio_width,-.01,transform=ax.transAxes,fill=False,ec='black',alpha=.8))
     ratiodisp = ax.add_patch(Rectangle((.15,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='gray',alpha=.8))
     ratio1disp = ax.add_patch(Rectangle((.15+ratio_width,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='black',alpha=.8))
-    real = process_time()
-    def info(t):
-      nonlocal real
-      real2 = process_time(); ratio = srate*(real2-real); real = real2
+    def info(t,start):
+      ratio = srate*(perf_counter()-start)
       simclockdisp.set_text(simclock_format(t))
       ratiodisp.set_width(ratio_width*min(ratio,1.))
       ratio1disp.set_width(ratio_width*max(ratio-1.,0.))
@@ -181,17 +182,3 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
     if isinstance(fig,dict): fig = figure(**fig)
     animate = ka.pop('animate',{})
     return self.display(fig.add_axes((0,0,1,1),aspect='equal'),animate=partial(FuncAnimation,repeat=False,**animate),**ka)
-
-#==================================================================================================
-def marker_hook(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):
-  r"""
-:param ax: matplotlib axes on which to display
-:type ax: :class:`matplotlib.Axes` instance
-:param f: a function with one parameter
-
-A display hook which displays a single marker whose position at time *t* is given by *f(t)*\.
-  """
-#==================================================================================================
-  for k,v in _dflt: ka.setdefault(k,v)
-  trg_s = ax.scatter((0,),(0,),**ka)
-  return lambda t: trg_s.set_offsets((f(t),))

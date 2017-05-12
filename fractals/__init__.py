@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from itertools import islice
-from numpy import array, sqrt, zeros, ones, seterr, abs, nan, linspace, newaxis
+from numpy import array, sqrt, zeros, ones, seterr, abs, nan, linspace, newaxis, greater_equal, true_divide
 from .util import MultizoomAnimation
 from ..util import Setup
 
@@ -34,7 +34,7 @@ remains bounded.
 
 Parameter *main* is assumed to be a generator function, which, given a complex number :math:`c`, yields the corresponding successive values of :math:`z_n(c)` for :math:`n=0\ldots\infty`. It must also work as a ufunc (i.e. when passed an array, it yields successive arrays of corresponding values).
 
-Parameter *eradius* is an escape radius of the fractal, i.e. a scalar :math:`R` such that if :math:`|z_n(c)|>R` for some :math:`n`, then the sequence :math:`(z_n(c))_{n\in\mathbb{N}}` is unbounded and :math:`c` does not belong to the fractal.
+Parameter *eradius* is an escape radius of the fractal, i.e. a scalar :math:`R` such that if :math:`|z_n(c)|>R` for some :math:`n`, then the sequence :math:`(z_n(c))_{n\in\mathbb{N}}` is provably unbounded and :math:`c` does not belong to the fractal.
 
 Attributes and methods:
   """
@@ -55,32 +55,27 @@ Attributes and methods:
     r"""
 :param grid: an array of complex numbers
 
-Successively yields the "temperature" grid :math:`\theta_n(c)` taken on all the points :math:`c` in *grid* for :math:`n=0\ldots\infty`, where
+Successively yields the "temperature" grid :math:`\theta_n(c)` taken on all the points :math:`c` in *grid* for :math:`n=1\ldots\infty`, where
 
 .. math::
 
    \begin{equation*}
-   \theta_n(c) = \frac{\min\{m\leq n\;|\; |z_m(c)|>R \textrm{ or } m=n\}}{n}
+   \theta_n(c) = \frac{\min\{m<n\;|\; |z_m(c)|>R\}\cup\{n\}}{n}
    \end{equation*}
 
-In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the proportion of times in the sequence :math:`(z_m(c))_{m=0:n}` when the value was within the escape radius. A temperature of :math:`1` characterises a point for which it has not been decided yet whether it belongs to this fractal (it has always been seen until now within the escape radius, but could escape later). A temperatures below :math:`1` characterises a point which is provably out of this fractal, and the value of the temperature reflects the effort (number of iterations) required to reach that decision.
+In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the proportion of times in the sequence :math:`(z_m(c))_{m=0:n-1}` when the value was within the escape radius. A temperature of :math:`1` characterises a point whose membership of this fractal is not decided yet (it has always been seen within the escape radius until now, but could escape later). A temperature below :math:`1` characterises a point which is provably out of this fractal, and the value of the temperature reflects the effort (number of iterations) that was required to reach that decision. Note that when :math:`n\rightarrow\infty`, the temperature :math:`\theta_n(c)` tends to :math:`1` if :math:`c` belongs to this fractal, and :math:`0` otherwise.
     """
 #--------------------------------------------------------------------------------------------------
     eradius = self.eradius
     s = grid.shape
-    tmd,tmap = zeros((2,)+s,float)
-    undecided = ones(s,bool)
-    sel = zeros(s,bool)
-    n = 0
+    tmd,tmap,undecided,sel = zeros(s,int),zeros(s,float),ones(s,bool),zeros(s,bool)
     seterr(invalid='ignore')
-    for z in self.main(grid):
-      sel[...] = abs(z)>=eradius
+    for n,z in enumerate(self.main(grid),1):
+      greater_equal(abs(z),eradius,sel)
       z[sel] = nan
       undecided[sel] = False
-      n += 1
-      tmd[...] = -tmap
       tmd[undecided] += 1
-      tmap += tmd/n
+      true_divide(tmd,n,tmap)
       yield tmap
 
 #--------------------------------------------------------------------------------------------------
