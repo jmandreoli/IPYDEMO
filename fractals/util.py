@@ -25,9 +25,18 @@ Displays a target (2-D object, typically a fractal) allowing navigation through 
 - Function *func* is passed a frame information (from the iterator returned by *frame*\) and a boolean flag, and is expected to draw the frame on *ax*\. It is called at each new precision level with the flag set to :const:`False`, and when the zooming level changes, with the flag is set to :const:`True`.
   """
   from matplotlib.animation import FuncAnimation
-  def forever(k,seq):
-    for n,v in enumerate(seq,1): yield k,n,v
-    while True: yield k,n,v
+  class Seq:
+    def __init__(self,k,seq):
+      self.blocked = False
+      self.iter_ = ((k,n,v) for n,v in enumerate(seq,1))
+      self.flow = iter(self)
+    def __iter__(self):
+      a = next(self.iter_)
+      yield a
+      while True:
+        if not self.blocked: a = next(self.iter_,a)
+        yield a
+    def toggle(self): self.blocked = not self.blocked
   def Func(args,cur=[-1,0]):
     if args is None: return (selection.rec,)
     else:
@@ -40,22 +49,26 @@ Displays a target (2-D object, typically a fractal) allowing navigation through 
   def Frames():
     def gc(k): del stack[k:]
     selection.gc = gc
-    stack = []
     while True:
       if selection.bbox is None:
         k,K = selection.level, len(stack)
         if K<k:
           assert k==K+1
-          seq = forever(K,frames(selection.stack[K]))
+          seq = Seq(K,frames(selection.stack[K]))
           stack.append(seq)
         else: seq = stack[k-1]
-        yield next(seq)
+        yield next(seq.flow)
       else:
         yield None
   try: ax.figure.canvas.toolbar.setVisible(False)
   except: pass
+  stack = []
   selection = Selection(ax)
   txt = ax.text(.001,.999,'',ha='left',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
+  def freeze(ev):
+    if ev.key != ' ': return
+    stack[selection.level-1].toggle()
+  ax.figure.canvas.mpl_connect('key_press_event',freeze)
   return FuncAnimation(ax.figure,func=Func,frames=Frames,**ka)
 
 #==================================================================================================
