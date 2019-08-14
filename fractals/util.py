@@ -42,11 +42,11 @@ At any zooming level, the frame iteration can be interrupted/resumed by pressing
     while True:
       if selection.bbox is None:
         k,K = selection.level, len(stack)
-        if K<k:
-          assert k==K+1
-          seq = Forever((k,n,v) for n,v in enumerate(frames(selection.stack[K]),1))
+        if K<=k:
+          assert k==K
+          seq = Forever((k,n,v) for n,v in enumerate(frames(selection.stack[k]),1))
           stack.append(seq)
-        else: seq = stack[k-1]
+        else: seq = stack[k]
         txt.set_color('k' if seq.running else 'r')
         yield next(seq.flow)
       else:
@@ -58,7 +58,7 @@ At any zooming level, the frame iteration can be interrupted/resumed by pressing
   txt = ax.text(.001,.999,'',ha='left',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
   def freeze(ev):
     if ev.key != ' ': return
-    stack[selection.level-1].toggle()
+    stack[selection.level].toggle()
   ax.figure.canvas.mpl_connect('key_press_event',freeze)
   return FuncAnimation(ax.figure,func=Func,frames=Frames,**ka)
 
@@ -111,9 +111,9 @@ Methods:
     ax.figure.canvas.mpl_connect('key_press_event',self.xlevel)
     self.rec = ax.add_patch(Rectangle((0,0),width=0,height=0,alpha=.4,color='k',visible=False,**ka))
     self.msize = 1e-10
-    self.txt = ax.text(.999,.999,'1',ha='right',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
+    self.txt = ax.text(.999,.999,'0',ha='right',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
     self.stack = [(ax.get_xlim(),ax.get_ylim())]
-    self.level = 1
+    self.level = 0
     self.bbox = None
     self.gc = gc
 
@@ -161,11 +161,11 @@ Finalises the rectangle capture when button 1 is released.
     self.bbox = None
     if abs(p1[0]-p[0])<self.msize or abs(p1[1]-p[1])<self.msize: return
     bounds = tuple(sorted((p[0],p1[0]))), tuple(sorted((p[1],p1[1])))
+    self.level += 1
+    self.txt.set_text(str(self.level))
     del self.stack[self.level:]
     self.gc(self.level)
     self.stack.append(bounds)
-    self.level += 1
-    self.txt.set_text(str(self.level))
 
 #--------------------------------------------------------------------------------------------------
   def xlevel(self,ev):
@@ -177,22 +177,33 @@ Navigates across the zoom levels.
     """
 #--------------------------------------------------------------------------------------------------
     if self.bbox is not None: return
+    showrec = True
     if ev.key in ('up','right'):
-      if self.level<len(self.stack): self.level += 1
+      if self.level<len(self.stack)-1:
+        self.level += 1
+        if self.level == len(self.stack)-1: showrec = False # top of stack
+      else: return
     elif ev.key in ('down','left'):
-      if self.level>1: self.level -= 1
+      if self.level>0: self.level -= 1
+      else: return
     else: return
-    if self.level<len(self.stack):
-      (p00,p10),(p01,p11) = self.stack[self.level]
-      self.rec.set_xy((p00,p01))
-      self.rec.set_width(p10-p00)
-      self.rec.set_height(p11-p01)
-      self.rec.set_visible(True)
-    else: self.rec.set_visible(False)
+    if showrec:
+      (p00,p10),(p01,p11) = self.stack[self.level+1]
+      self.rec.set(xy=(p00,p01),width=p10-p00,height=p11-p01)
+    self.rec.set_visible(showrec)
     self.txt.set_text(str(self.level))
 
 #==================================================================================================
 class Forever:
+  r"""
+An object of this class allows to control an iterator *it*, passed as argument to its constructor. The controlled iterator, available as attribute :attr:`flow`, enumerates the elements of *it* except that
+
+- when *it* is exhausted, its last value is indefinitely repeated
+
+- when this object is interrupted, *it* is untouched and the last value extracted from it is repeated until this object is resumed.
+
+Use method :meth:`toggle` to interrupt/resume the object.
+  """
 #==================================================================================================
   def __init__(self,it,running=True):
     self.running = running
