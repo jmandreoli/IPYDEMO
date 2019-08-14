@@ -23,20 +23,10 @@ Displays a target (2-D object, typically a fractal) allowing navigation through 
 - Function *frames* is passed a bounding box specification and is expected to return an iterator of frame informations needed to draw the subset of the target within this bounding box, at successive levels of precision. The iterator is enumerated at regular intervals in the animation as long as the zooming level is not changed, and resumed whenever the same zooming level is reselected. A bounding box spec is a pair (x-bounds,y-bounds) of pairs corresponding to the two opposite corners of the bounding box in data coordinates.
 
 - Function *func* is passed a frame information (from the iterator returned by *frame*\) and a boolean flag, and is expected to draw the frame on *ax*\. It is called at each new precision level with the flag set to :const:`False`, and when the zooming level changes, with the flag is set to :const:`True`.
+
+At any zooming level, the frame iteration can be interrupted/resumed by pressing the space key.
   """
   from matplotlib.animation import FuncAnimation
-  class Seq:
-    def __init__(self,k,seq):
-      self.blocked = False
-      self.iter_ = ((k,n,v) for n,v in enumerate(seq,1))
-      self.flow = iter(self)
-    def __iter__(self):
-      a = next(self.iter_)
-      yield a
-      while True:
-        if not self.blocked: a = next(self.iter_,a)
-        yield a
-    def toggle(self): self.blocked = not self.blocked
   def Func(args,cur=[-1,0]):
     if args is None: return (selection.rec,)
     else:
@@ -54,9 +44,10 @@ Displays a target (2-D object, typically a fractal) allowing navigation through 
         k,K = selection.level, len(stack)
         if K<k:
           assert k==K+1
-          seq = Seq(K,frames(selection.stack[K]))
+          seq = Forever((k,n,v) for n,v in enumerate(frames(selection.stack[K]),1))
           stack.append(seq)
         else: seq = stack[k-1]
+        txt.set_color('k' if seq.running else 'r')
         yield next(seq.flow)
       else:
         yield None
@@ -199,3 +190,17 @@ Navigates across the zoom levels.
       self.rec.set_visible(True)
     else: self.rec.set_visible(False)
     self.txt.set_text(str(self.level))
+
+#==================================================================================================
+class Forever:
+#==================================================================================================
+  def __init__(self,it,running=True):
+    self.running = running
+    def flow():
+      a = next(it)
+      yield a
+      while True:
+        if self.running: a = next(it,a)
+        yield a
+    self.flow = flow()
+  def toggle(self): self.running = not self.running
