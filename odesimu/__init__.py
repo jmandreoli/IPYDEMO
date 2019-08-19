@@ -83,15 +83,15 @@ Returns the pair of the live and shadow display information associated with *sta
 Runs a simulation of the system from the initial state *ini* (time 0) until *maxtime*, sampled at rate *srate*. The successive states are returned by an iterator.
     """
 #--------------------------------------------------------------------------------------------------
-    from time import perf_counter
+    from time import time
     r = ode(self.main,self.jacobian).set_integrator(**self.integrator)
     dt = 1/srate
-    start = perf_counter()
+    start = last = time()
     r.set_initial_value(ini,0.)
     while r.successful():
       if r.t>maxtime: return
-      yield r.t, r.y, start
-      start = perf_counter()
+      yield r.t, r.y, (start,last)
+      last = time()
       r.integrate(r.t+dt)
     else: raise Exception('ODE solver failed!')
 
@@ -121,13 +121,13 @@ A display hook is a function which is invoked once with argument *ax*, and retur
     hooks = list(hook for hook in (hookf(ax) for hookf in hooks) if hook is not None)
     info = self.infohook(ax,srate)
     def disp_(frm):
-      t,state,start = frm
+      t,state,(start,last) = frm
       for hook in hooks: hook(t)
       live, shadow = self.fordisplay(state)
       tail[1:] = tail[:-1]
       tail[0] = shadow
       disp(t,live,tail)
-      info(t,start)
+      info(t,start,last)
     return animate(ax.figure,interval=1000./srate,frames=partial(self.runstep,srate=srate,**ka),func=disp_)
 
 #--------------------------------------------------------------------------------------------------
@@ -136,25 +136,28 @@ A display hook is a function which is invoked once with argument *ax*, and retur
     r"""
 A display hook which displays some information about the simulation:
 
-* a simulation clock
+* a simulation clock (and its lag w.r.t. the real clock)
 
-* the ratio between the real execution duration of one simulation step and the simulation duration of that step.
+* the ratio between the real execution duration of the current simulation step and the simulation duration of that step.
 
-When the ratio is below one, the simulation clock is adjusted to be a real clock. If above one, the simulation clock is slower than a real clock.
+If the ratio is above one, the simulation clock may lag behind the real clock. But even with a ratio always below one, a lag may appear and accumulate.
     """
 #--------------------------------------------------------------------------------------------------
     from matplotlib.patches import Rectangle
-    from time import perf_counter
+    from time import time
     ax.text(0.01,0.99,'time:',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
-    simclockdisp = ax.text(0.07,0.99,'',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
-    simclock_format = '{:.1f}s'.format
+    clockdisp = ax.text(0.07,0.99,'',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
+    lagdisp = ax.text(0.14,0.99,'',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
     ratio_width = 0.1
-    ax.add_patch(Rectangle((.15,.99),ratio_width,-.01,transform=ax.transAxes,fill=False,ec='black',alpha=.8))
-    ratiodisp = ax.add_patch(Rectangle((.15,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='gray',alpha=.8))
-    ratio1disp = ax.add_patch(Rectangle((.15+ratio_width,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='black',alpha=.8))
-    def info(t,start):
-      ratio = srate*(perf_counter()-start)
-      simclockdisp.set_text(simclock_format(t))
+    ax.add_patch(Rectangle((.2,.99),ratio_width,-.01,transform=ax.transAxes,fill=False,ec='black',alpha=.8))
+    ratiodisp = ax.add_patch(Rectangle((.2,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='gray',alpha=.8))
+    ratio1disp = ax.add_patch(Rectangle((.2+ratio_width,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='black',alpha=.8))
+    def info(t,start,last):
+      tm = time()
+      lag = tm-start-t
+      lagdisp.set_text('{}{:.2f}'.format(('+' if lag>0 else '-'),lag) if abs(lag) >.1 else '')
+      clockdisp.set_text('{:.2f}'.format(t))
+      ratio = srate*(tm-last)
       ratiodisp.set_width(ratio_width*min(ratio,1.))
       ratio1disp.set_width(ratio_width*max(ratio-1.,0.))
     return info
