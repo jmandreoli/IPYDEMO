@@ -8,31 +8,31 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from itertools import islice
-from numpy import array, sqrt, zeros, ones, seterr, abs, nan, linspace, newaxis, greater_equal, true_divide
+from itertools import islice, count
+from numpy import array, sqrt, zeros, ones, seterr, abs, nan, isnan, linspace
 from .util import MultizoomAnimation
 from ..util import Setup
 
 #==================================================================================================
 class Fractal:
   r"""
-:param main: a generator function (see below)
+:param main: a function (see below)
 :param eradius: escape radius of the sequence defining this fractal object
 :type eradius: :class:`float`
 :param ibounds: area of interest of this fractal object, as a bounding box
 :type ibounds: pair(pair(:class:`float`))
 
-Objects of this class represent abstract fractals, defined by two functions :math:`u:\mathbb{C}\mapsto\mathbb{C}` and :math:`v:\mathbb{C}\times\mathbb{C}\mapsto\mathbb{C}` as the set of complex numbers :math:`c` such that the sequence
+Objects of this class represent abstract fractals, defined by a function :math:`u:\mathbb{C}\times\mathbb{C}\mapsto\mathbb{C}` as the set of complex numbers :math:`c` such that the sequence
 
 .. math::
 
    \begin{equation*}
-   z_0(c)=u(c) \hspace{1cm} z_{n+1}(c)=v(z_n(c),c)
+   z_0(c)=c \hspace{1cm} z_{n+1}(c)=u(z_n(c),c)
    \end{equation*}
 
 remains bounded.
 
-Parameter *main* is assumed to be a generator function, which, given a complex number :math:`c`, yields the corresponding successive values of :math:`z_n(c)` for :math:`n=0\ldots\infty`. It must also work as a ufunc (i.e. when passed an array, it yields successive arrays of corresponding values).
+Parameter *main* is assumed to be function :math:`u` implemented as a ufunc.
 
 Parameter *eradius* is an escape radius of the fractal, i.e. a scalar :math:`R` such that if :math:`|z_n(c)|>R` for some :math:`n`, then the sequence :math:`(z_n(c))_{n\in\mathbb{N}}` is provably unbounded and :math:`c` does not belong to the fractal.
 
@@ -68,18 +68,18 @@ In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the 
 #--------------------------------------------------------------------------------------------------
     eradius = self.eradius
     s = grid.shape
-    tmd,tmap,undecided,sel = zeros(s,int),zeros(s,float),ones(s,bool),zeros(s,bool)
-    seterr(invalid='ignore')
-    for n,z in enumerate(self.main(grid),1):
-      greater_equal(abs(z),eradius,sel)
+    tmd,tmap,sel = zeros(s,int),zeros(s,float),zeros(s,bool)
+    z = grid.copy()
+    for n in count(1):
+      sel[...] = abs(z)>=eradius
       z[sel] = nan
-      undecided[sel] = False
-      tmd[undecided] += 1
-      true_divide(tmd,n,tmap)
+      tmd[~isnan(z)] += 1
+      tmap[...] = tmd/n
       yield tmap
+      z[...] = self.main(z,grid)
 
 #--------------------------------------------------------------------------------------------------
-  def display(self,ax,maxiter=None,resolution=None,ibounds=None,**ka):
+  def display(self,ax,maxiter=None,resolution=None,ibounds=None,cmap='jet',**ka):
     r"""
 :param ax: matplotlib axes on which to display
 :type ax: :class:`matplotlib.Axes` instance
@@ -93,17 +93,17 @@ Displays this fractal, initially zooming on *ibounds*, and allows multizoom navi
     """
 #--------------------------------------------------------------------------------------------------
     if ibounds is None: ibounds = self.ibounds
-    img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,origin='lower',extent=ibounds[0]+ibounds[1],cmap='jet',interpolation='bilinear')
+    img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,origin='lower',extent=ibounds[0]+ibounds[1],cmap=cmap,interpolation='bilinear')
     def frames(bounds):
       xb, yb = bounds
-      r = (xb[1]-xb[0])/(yb[1]-yb[0])
-      Nx = int(sqrt(resolution/r)); Ny = int(resolution/Nx)
-      grid = array(linspace(xb[0],xb[1],Ny),dtype=complex)[newaxis,:]+1.j*array(linspace(yb[0],yb[1],Nx),dtype=complex)[:,newaxis]
+      r = (yb[1]-yb[0])/(xb[1]-xb[0])
+      Ny = int(sqrt(resolution*r)); Nx = int(resolution/Ny)
+      grid = linspace(xb[0],xb[1],Nx,dtype=complex)[None,:]+1.j*linspace(yb[0],yb[1],Ny,dtype=complex)[:,None]
       return islice(((tmap,bounds) for tmap in self.temperature(grid)),maxiter)
-    def disp_(frm,interrupt=False):
+    def disp_(frm):
       tmap,bounds = frm
       img.set_array(tmap)
-      if interrupt: img.set_extent(bounds[0]+bounds[1])
+      img.set_extent(bounds[0]+bounds[1])
       img.changed()
       return img,
     return MultizoomAnimation(ax,disp_,frames=frames,init_func=(lambda: None),**ka)
@@ -125,6 +125,5 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
     """
 #--------------------------------------------------------------------------------------------------
     from matplotlib.pyplot import figure
-    from matplotlib.animation import FuncAnimation
     if isinstance(fig,dict): fig = figure(**fig)
-    return self.display(fig.add_axes((0,0,1,1),xticks=(),yticks=()),repeat=False,**ka)
+    return self.display(fig.add_axes((0,0,1,1),xticks=(),yticks=(),aspect='equal'),repeat=False,**ka)
