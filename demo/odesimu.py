@@ -11,6 +11,7 @@ if __name__=='__main__':
 
 #--------------------------------------------------------------------------------------------------
 
+from pathlib import Path; DIR = Path(__file__).parent.resolve()
 from functools import partial
 from numpy import array,square,sqrt,cos,sin,arccos,arcsin,degrees,radians,pi,nan
 from ..odesimu import System
@@ -69,7 +70,9 @@ class Pendulum (System):
   def makestate(theta,dtheta=0.): return radians((theta,dtheta))
 
 def demo():
-  from matplotlib.pyplot import show
+  from matplotlib.pyplot import figure,show
   syst = Pendulum(L=1.,G=9.81)
-  a = syst.launch(fig=dict(figsize=(9,10)),ini=syst.makestate(theta=90.,dtheta=240.),taild=.5,refsize=50.,maxtime=2.)
-  show()
+  fig = figure(figsize=(9,10))
+  a = syst.launch(fig,ini=syst.makestate(theta=90.,dtheta=240.),taild=.5,refsize=50.,maxtime=2.)
+  if automatic: fig.savefig(str(DIR/'odesimu.png'))
+  else: show()

@@ -1,0 +1,7 @@
+PYTHON :=
+TARGET := fractals.out odesimu.out
+
+all: ${TARGET}
+
+%.out: %.py
+	@export PYTHONPATH=../.. ; ${PYTHON} make.py IPYDEMO.demo.$(patsubst %.py,%,$<)
