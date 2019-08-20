@@ -69,9 +69,8 @@ In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the 
     eradius = self.eradius
     s = grid.shape
     tmd,tmap,sel = zeros(s,int),zeros(s,float),zeros(s,bool)
-    seterr(invalid='ignore')
     z = grid.copy()
-    for n in count(0):
+    for n in count(1):
       sel[...] = abs(z)>=eradius
       z[sel] = nan
       tmd[~isnan(z)] += 1
@@ -80,7 +79,7 @@ In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the 
       z[...] = self.main(z,grid)
 
 #--------------------------------------------------------------------------------------------------
-  def display(self,ax,maxiter=None,resolution=None,ibounds=None,**ka):
+  def display(self,ax,maxiter=None,resolution=None,ibounds=None,cmap='jet',**ka):
     r"""
 :param ax: matplotlib axes on which to display
 :type ax: :class:`matplotlib.Axes` instance
@@ -94,17 +93,17 @@ Displays this fractal, initially zooming on *ibounds*, and allows multizoom navi
     """
 #--------------------------------------------------------------------------------------------------
     if ibounds is None: ibounds = self.ibounds
-    img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,origin='lower',extent=ibounds[0]+ibounds[1],cmap='jet',interpolation='bilinear')
+    img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,origin='lower',extent=ibounds[0]+ibounds[1],cmap=cmap,interpolation='bilinear')
     def frames(bounds):
       xb, yb = bounds
       r = (yb[1]-yb[0])/(xb[1]-xb[0])
       Ny = int(sqrt(resolution*r)); Nx = int(resolution/Ny)
       grid = linspace(xb[0],xb[1],Nx,dtype=complex)[None,:]+1.j*linspace(yb[0],yb[1],Ny,dtype=complex)[:,None]
       return islice(((tmap,bounds) for tmap in self.temperature(grid)),maxiter)
-    def disp_(frm,interrupt=False):
+    def disp_(frm):
       tmap,bounds = frm
       img.set_array(tmap)
-      if interrupt: img.set_extent(bounds[0]+bounds[1])
+      img.set_extent(bounds[0]+bounds[1])
       img.changed()
       return img,
     return MultizoomAnimation(ax,disp_,frames=frames,init_func=(lambda: None),**ka)
@@ -127,4 +126,4 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
 #--------------------------------------------------------------------------------------------------
     from matplotlib.pyplot import figure
     if isinstance(fig,dict): fig = figure(**fig)
-    return self.display(fig.add_axes((0,0,1,1),xticks=(),yticks=()),repeat=False,**ka)
+    return self.display(fig.add_axes((0,0,1,1),xticks=(),yticks=(),aspect='equal'),repeat=False,**ka)
