@@ -71,7 +71,9 @@ In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the 
     tmd,tmap,sel = zeros(s,int),zeros(s,float),zeros(s,bool)
     z = grid.copy()
     for n in count(1):
+      s = seterr(invalid='ignore')
       sel[...] = abs(z)>=eradius
+      seterr(**s)
       z[sel] = nan
       tmd[~isnan(z)] += 1
       tmap[...] = tmd/n

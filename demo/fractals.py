@@ -5,7 +5,7 @@
 
 if __name__=='__main__':
   import sys
-  from ipyshow.demo.fractals import demo
+  from IPYDEMO.demo.fractals import demo
   demo()
   sys.exit(0)
 

@@ -5,7 +5,7 @@
 
 if __name__=='__main__':
   import sys
-  from ipyshow.demo.odesimu import demo
+  from IPYDEMO.demo.odesimu import demo
   demo()
   sys.exit(0)
 
@@ -15,6 +15,7 @@ from pathlib import Path; DIR = Path(__file__).parent.resolve()
 from functools import partial
 from numpy import array,square,sqrt,cos,sin,arccos,arcsin,degrees,radians,pi,nan
 from ..odesimu import System
+automatic = False
 
 class Pendulum (System):
 
