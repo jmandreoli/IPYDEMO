@@ -9,8 +9,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 from functools import partial
-from numpy import zeros, nan, infty
+from numpy import array, zeros, nan, infty
 from scipy.integrate import ode
+from .util import Controller
 from ..util import Setup
 
 """
@@ -167,12 +168,12 @@ If the ratio is above one, the simulation clock may lag behind the real clock. B
 
 #--------------------------------------------------------------------------------------------------
   @Setup(
-    'maxtime: total simulation time length [sec]',
+    'ini: initial state',
     'srate: sampling rate [sec^-1]',
+    'maxtime: total simulation time length [sec]',
     'taild: shadow duration [sec]',
     'hooks: tuple of display hooks',
-    'ini: initial state',
-    maxtime=infty,srate=25.
+    maxtime=infty,srate=25.,
   )
   def launch(self,fig=dict(figsize=(9,9)),**ka):
     r"""
@@ -188,3 +189,51 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
     if isinstance(fig,dict): fig = figure(**fig)
     animate = ka.pop('animate',{})
     return self.display(fig.add_axes((0,0,1,1),aspect='equal'),animate=partial(FuncAnimation,repeat=False,**animate),**ka)
+
+#==================================================================================================
+class ControlledSystem (System):
+
+  r"""
+Objects of this class are controlled systems. Its ODE is simply:
+
+.. math::
+
+   \begin{array}{rcl}
+   \frac{\mathbf{d}s}{\mathbf{d}t} & = & \gamma(t,s(t')_{t'\in O,t'<t})
+   \end{array}
+
+:math:`\gamma` is a function of time and of a finite sample of past states. Here, sampling is at regular intervals, defining the control rate.
+  """
+#==================================================================================================
+  def __init__(self,control):
+    r"""
+:param control: a controller
+:type control: util.Controller
+
+*control* implements function :math:`\gamma`.
+    """
+    assert isinstance(control,Controller)
+    self.control = control
+    def main(t,state):
+      x,y,xʹ,yʹ = state
+      xʺ,yʺ = control(t)
+      return array((xʹ,yʹ,xʺ,yʺ))
+    self.main = main
+    def fordisplay(state):
+      x,y,xʹ,yʹ = state
+      live = x,y
+      return live,live
+    self.fordisplay = fordisplay
+
+  def runstep(self,crate=None,ini=None,**ka):
+    r"""
+:param crate: control rate
+:type crate: :class:`float`
+
+The controller is initialised then updated with the pair (current-time,current-state) with rate *crate*
+    """
+    self.control.reset((0.,ini))
+    t0 = T = 1/crate
+    for t,y,start in super().runstep(ini=ini,**ka):
+      if t>t0: self.control.update(t,(t,y)); t0 += T
+      yield t,y,start

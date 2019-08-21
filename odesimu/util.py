@@ -8,7 +8,7 @@
 import logging
 logger = logging.getLogger(__name__)
 
-from numpy import zeros, infty, linspace, hstack, exp, infty, newaxis, digitize, eye
+from numpy import array, zeros, infty, linspace, hstack, exp, infty, digitize
 from numpy.random import uniform
 from functools import wraps
 from ..util import Setup
@@ -27,7 +27,7 @@ A functor (decorator) which allows limited buffering of a function over the posi
 #==================================================================================================
   def tr(f):
     epoch = 0
-    buf = linspace(0,2*T,2*N+1)[:,newaxis]
+    buf = linspace(0,2*T,2*N+1)[:,None]
     buf = hstack((buf,f(buf)))
     step = T/N
     @wraps(f)
@@ -47,21 +47,23 @@ A functor (decorator) which allows limited buffering of a function over the posi
   return tr
 
 #==================================================================================================
-def blurred(level=None,M=1000,shape=(1,),ident=lambda f: f):
+def blurred(level=None,offset=0.,M=1000,ident=lambda f: f):
   r"""
 :param level: the degree of blurring, as a positive number.
 
-A functor (decorator) which applies a multiplicative noise to a function. The multiplicative coefficient follows a log-uniform distribution between -*level* and *level*. Two invocations of the blurred function, whether they have the same argument or not, are blurred independently.
+A functor (decorator) which applies a multiplicative noise to a function. The multiplicative coefficient follows a log-uniform distribution between -*level* and *level*. Two invocations of the blurred function, whether they have the same argument or not, are blurred independently. *offset* if added to the function before blurring and subtracted afterwards.
   """
 #==================================================================================================
   if not level: return ident
   def noise(M):
     while True:
-      for x in exp(uniform(-level,level,(M,)+shape)): yield x
+      for x in exp(uniform(-level,level,(M,)+offset.shape)): yield x
   def tr(f):
+    b = noise(M)
     @wraps(f)
-    def F(t,f=f,b=noise(M)): return f(t)*next(b)
+    def F(*a,**ka): return (f(*a,**ka)+offset)*next(b)-offset
     return F
+  offset = array(offset)
   return tr
 
 #==================================================================================================
@@ -71,19 +73,16 @@ class DPiecewiseFunc:
 Objects of this class implement piecewise constant functions which are dynamically constructed.
 
 :param N: size of the buffer of change points
-:param v: default value
 
-Initially, the function is the constant function with value *v*. Whenever a new change point is inserted, it must be greater than all the previous change points and all the arguments at which the function has already been evaluated, otherwise, an exception is raised. When the buffer is exceeded, old change points are forgotten and any attempt to evaluate the function before or at those old change points raises an exception.
+Initially, the function is everywhere constant. Whenever a new change point is inserted, it must be greater than all the previous change points and all the arguments at which the function has already been evaluated, otherwise, an exception is raised. When the buffer is exceeded, old change points are forgotten and any attempt to evaluate the function before or at those old change points raises an exception.
   """
 #==================================================================================================
   @Setup(
     'N: size of the buffer of change points',
   )
-  def __init__(self,N,v):
-    K, = v.shape
+  def __init__(self,N):
     self.changepoint = zeros((N,))
-    self.value = zeros((N,)+v.shape)
-    self.default = v
+    self.value = None
     def call(t):
       if t>self.tmax: self.tmax = t
       n, = digitize((t,),self.changepoint,right=True)
@@ -91,19 +90,20 @@ Initially, the function is the constant function with value *v*. Whenever a new 
       return self.value[n-1]
     self.call = call
 
-  def reset(self,v=None):
+  def reset(self,v):
     r"""
 (Re)initialises this function. Must always be called once before use.
     """
-    if v is None: v = self.default
     self.changepoint[:] = -infty
-    self.value[...] = v[newaxis,:]
+    self.value = zeros((self.changepoint.shape[0],)+v.shape)
+    self.value[-1] = v # only -1 needs to be initialised
     self.tmax = -infty
 
   def update(self,t,v):
     r"""
 Sets a new change point at time *t* with value *v* on the right of *t*.
     """
+    if t<=self.changepoint[-1]: DPiecewiseFuncException('out-of-order update',t)
     if t<self.tmax: raise DPiecewiseFuncException('obsolete update',t)
     self.changepoint[:-1] = self.changepoint[1:]
     self.value[:-1] = self.value[1:]
@@ -113,46 +113,81 @@ Sets a new change point at time *t* with value *v* on the right of *t*.
   def __call__(self,t): return self.call(t)
 
 #==================================================================================================
-class PIDController (DPiecewiseFunc):
+class Controller:
+#==================================================================================================
+  def __call__(self,t):
+    r"""
+:param t: time
+
+Returns the action at time *t*. This implementation raises an error, so this method must be overridden in a subclass or instantiated at runtime.
+    """
+    raise NotImplementedError()
+  def reset(self,o):
+    r"""
+:param o: observation
+
+Initialises this controller (invoked once, at time 0). This implementation raises an error, so this method must be overridden in a subclass or instantiated at runtime.
+    """
+    raise NotImplementedError()
+  def update(self,t,o):
+    r"""
+:param t: time
+:param o: observation
+
+Records an observation *o* at time *t*. This implementation raises an error, so this method must be overridden in a subclass or instantiated at runtime.
+    """
+    raise NotImplementedError()
+
+#==================================================================================================
+class PIDController (DPiecewiseFunc,Controller):
   r"""
 Objects of this class implement rudimentary PID controllers.
 
-:param gP,gI,gD: proportional, integration, derivative gain
-:type gP,gI,gD: :class:`float`
-:param observe: a function of state returning an observation of that state, or a default observation if passed :const:`None`
-:param target: a function of time indicating the target value to reach
+:param gain: proportional, integration, derivative gains
+:type gain: :class:`array`
 
 An instance of this class defines the control as a piecewise constant function. A new change point is created by invoking method :meth:`update` passing it a time *t* and state *s* of the system at that time. The associated control is based on the difference between the value of function *observe* at *s* and the value of function *target* at *t*, using the PID scheme. Change points must be inserted in chronological order.
   """
 #==================================================================================================
   @Setup(
-    'gP,gI,gD: control gains (proportional, integral, derivative)',
-    'observe: observation function',
-    'target: target function',
-    gP=0.,gI=0.,gD=0.
+    DPiecewiseFunc.__init__,
+    'gP: proportional control gain as error quantity per observation quantity [err]',
+    'gI: integral control gain [err.sec^-1]',
+    'gD: derivative control gain [err.sec]',
+    'observe: input to observation transform',
+    'action: error to output transform',
+    gP=None,gI=None,gD=None,observe=None,action=None,
   )
-  def __init__(self,gP,gI,gD,observe,target,**ka):
-    v0 = observe()
-    super().__init__(v=v0,**ka)
-    R = eye(len(v0.shape))
-    last = None
-    intg = zeros(v0.shape)
-    def update(t,state,update=self.update):
-      nonlocal last, intg
-      v = observe(state)-target(t)
-      tlast,vlast = last
+  def __init__(self,gP,gI,gD,observe,action,**ka):
+    super().__init__(**ka)
+    assert gP is not None
+    last = cum = None
+    if action is not None: # otherwise, output = error
+      assert callable(action)
+      self.call = lambda t,call=self.call: action(call(t))
+    if observe is not None: # otherwise, observation = input
+      assert(callable(observe))
+    def update(t,o,update=self.update):
+      nonlocal last, cum
+      tlast,olast = last
       dt = t-tlast
-      intg += .5*(vlast+v)*dt
-      r  = - gP*v - gD*(v-vlast)/dt - gI*intg
+      r  = 0.
+      if gP is not None: r -= gP*o
+      if gD is not None: r -= gD*(o-olast)/dt
+      if gI is not None:
+        cum += .5*(olast+o)*dt
+        r -= gI*cum
       update(t,r)
-      last = t,v
+      last = t,o
+    if observe is not None: update = lambda t,x,update=update: update(t,observe(x))
     self.update = update
-    def reset(state,reset=self.reset):
-      nonlocal last
-      v = observe(state)-target(0)
-      last = 0,v
-      r = -gP*v
+    def reset(o,reset=self.reset):
+      nonlocal last, cum
+      last = 0,o
+      cum = zeros(o.shape)
+      r = -gP*o
       reset(r)
+    if observe is not None: reset = lambda x,reset=reset: reset(observe(x))
     self.reset = reset
 
 #==================================================================================================

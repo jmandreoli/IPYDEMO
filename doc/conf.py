@@ -12,8 +12,8 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
-sys.path.insert(0,'/home/andreoli/src/distrib')
+import sys,pathlib
+sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.parent.parent))
 def setup(app):
   from inspect import isbuiltin
   def fixbug(app,what,name,obj,skip,options):
@@ -107,7 +107,7 @@ pygments_style = 'sphinx'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'nature'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -185,7 +185,7 @@ html_static_path = ['_static']
 #html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'IPYDEMOdoc'
+htmlhelp_basename = project+'doc'
 
 
 # -- Options for LaTeX output ---------------------------------------------
@@ -205,7 +205,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  ('index', 'IPYDEMO.tex', 'IPYDEMO Documentation',
+  ('index', project+'.tex', project+' Documentation',
    'Jean-Marc Andreoli', 'manual'),
 ]
 
@@ -235,7 +235,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('index', 'ipydemo', 'IPYDEMO Documentation',
+    ('index', project.lower(), project+' Documentation',
      ['Jean-Marc Andreoli'], 1)
 ]
 
@@ -249,8 +249,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  ('index', 'IPYDEMO', 'IPYDEMO Documentation',
-   'Jean-Marc Andreoli', 'IPYDEMO', 'One line description of project.',
+  ('index', project, project+' Documentation',
+   'Jean-Marc Andreoli', project, 'One line description of project.',
    'Miscellaneous'),
 ]
 

@@ -1,5 +1,5 @@
-:mod:`fractals` --- Fractals exploration
-========================================
+:mod:`IPYDEMO.fractals` --- Fractals exploration
+================================================
 
 This module provides tools to display and explore fractals.
 
@@ -26,13 +26,12 @@ Typical output:
 Available types and functions
 -----------------------------
 
-.. automodule:: ipyshow.fractals
+.. automodule:: IPYDEMO.fractals
    :members:
    :member-order: bysource
    :show-inheritance:
 
-.. automodule:: ipyshow.fractals.util
+.. automodule:: IPYDEMO.fractals.util
    :members:
    :member-order: bysource
    :show-inheritance:
-

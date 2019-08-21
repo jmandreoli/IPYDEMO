@@ -1,5 +1,5 @@
-:mod:`odesimu` --- Dynamical system simulation
-==============================================
+:mod:`IPYDEMO.odesimu` --- Dynamical system simulation
+======================================================
 
 This module provides basic utilities to build system simulations based on ordinary differential equations (ODE).
 
@@ -31,7 +31,7 @@ Method **display** performs the following steps:
 * apply various configurations to *ax*, which is an instance of **matplotlib.axes.Axes**: here, set the limits and the title, and draw the pivot and trajectory of the bob, as, in this simple example, it can easily be computed;
 * define the matplotlib artists, initially empty, capturing the dynamic components of the simulation: here *rod_a* (pendulum's rod as a straight line segment), *bob_a* (pendulum's bob as a single point) and *shadow_a* (shadow of the buffered previous positions of the bob, as a curve);
 * define the display refresher function *disp* invoked each time a new system state is computed by the ODE solver: it updates the dynamic components of the simulation;
-* finally, invoke method **display** from the superclass, passing *ax* and *disp* as first two arguments. 
+* finally, invoke method **display** from the superclass, passing *ax* and *disp* as first two arguments.
 
 Typical output:
 
@@ -41,13 +41,12 @@ Typical output:
 Available types and functions
 -----------------------------
 
-.. automodule:: ipyshow.odesimu
+.. automodule:: IPYDEMO.odesimu
    :members:
    :member-order: bysource
    :show-inheritance:
 
-.. automodule:: ipyshow.odesimu.util
+.. automodule:: IPYDEMO.odesimu.util
    :members:
    :member-order: bysource
    :show-inheritance:
-
