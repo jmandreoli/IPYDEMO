@@ -5,12 +5,30 @@ import inspect, re
 #==================================================================================================
 def Setup(*H,**D):
 #==================================================================================================
+  r"""
+:param H: a list of either help strings or other :func:`Setup` decorated functions
+:param D: a dictionary of default parameter-value pairs
+
+A decorator to set helpers to a function, and also declare default parameters even if they don't appear explicitly in the list of parameters (useful for functions which encapsulate other functions and pass parameters unmodified using the \* and \*\* notation).
+
+A help string in *H* has the following syntax::
+
+   helpstring = params ":" description ( "[" unit "]")
+   params = paramname ("," params)*
+   unit = unitname ( "^" exponent ) ( "." unit )
+
+Example::
+
+   G: gravitation [m.sec^-2]
+
+The helper for a list of :func:`Setup` annotated functions can be obtained by invoking :func:`Setup.display` with the elements of the list as arguments. The list can also contain classes, which stand for all their :func:`Setup` annotated members.
+  """
   def parse(h,pat=re.compile(r'(?P<argn>(?:\w|,)+?)\s*:\s+(?P<help>[^[]+)(?:\s+\[(?P<unit>(?:\w+(?:\^-?[0-9]+)?)(?:\.\w+(?:\^-?[0-9]+)?)*)\])?'),upat=re.compile(r'(?P<base>[^\^]+)(?:\^(?P<expn>.+))?')):
     def unit(x):
-      g = upat.fullmatch(x).groups()
-      return g[0],(1 if g[1] is None else int(g[1]))
-    g = pat.fullmatch(h.strip()).groups()
-    return tuple(g[0].split(',')),(g[1],(() if g[2] is None else tuple(unit(x) for x in g[2].split('.'))))
+      g = upat.fullmatch(x).groupdict()
+      return g['base'],(1 if g['expn'] is None else int(g['expn']))
+    g = pat.fullmatch(h.strip()).groupdict()
+    return tuple(g['argn'].split(',')),(g['help'],(() if g['unit'] is None else tuple(unit(x) for x in g['unit'].split('.'))))
   def tr(f):
     assert inspect.isfunction(f)
     if D:

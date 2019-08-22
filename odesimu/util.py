@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 from numpy import array, zeros, infty, linspace, hstack, exp, infty, digitize
 from numpy.random import uniform
 from functools import wraps
-from ..util import Setup
+from .. import Setup
 
 #==================================================================================================
 def buffered(T=None,N=None,bufferException=type('bufferException',(Exception,),{})):
@@ -90,18 +90,19 @@ Initially, the function is everywhere constant. Whenever a new change point is i
       return self.value[n-1]
     self.call = call
 
-  def reset(self,v):
+  def reset(self,t,v):
     r"""
-(Re)initialises this function. Must always be called once before use.
+(Re)initialises this function with a single change point at time *t* with value *v*.
     """
+    if t is None: t = -infty
     self.changepoint[:] = -infty
     self.value = zeros((self.changepoint.shape[0],)+v.shape)
+    self.changepoint[-1] = self.tmax = t
     self.value[-1] = v # only -1 needs to be initialised
-    self.tmax = -infty
 
   def update(self,t,v):
     r"""
-Sets a new change point at time *t* with value *v* on the right of *t*.
+Sets a new change point at time *t* with value *v*.
     """
     if t<=self.changepoint[-1]: DPiecewiseFuncException('out-of-order update',t)
     if t<self.tmax: raise DPiecewiseFuncException('obsolete update',t)
@@ -122,11 +123,12 @@ class Controller:
 Returns the action at time *t*. This implementation raises an error, so this method must be overridden in a subclass or instantiated at runtime.
     """
     raise NotImplementedError()
-  def reset(self,o):
+  def reset(self,t,o):
     r"""
+:param t: time
 :param o: observation
 
-Initialises this controller (invoked once, at time 0). This implementation raises an error, so this method must be overridden in a subclass or instantiated at runtime.
+Initialises this controller. This implementation raises an error, so this method must be overridden in a subclass or instantiated at runtime.
     """
     raise NotImplementedError()
   def update(self,t,o):
@@ -154,40 +156,44 @@ An instance of this class defines the control as a piecewise constant function. 
     'gP: proportional control gain as error quantity per observation quantity [err]',
     'gI: integral control gain [err.sec^-1]',
     'gD: derivative control gain [err.sec]',
+    'crate: control rate [sec^-1]',
     'observe: input to observation transform',
     'action: error to output transform',
-    gP=None,gI=None,gD=None,observe=None,action=None,
   )
-  def __init__(self,gP,gI,gD,observe,action,**ka):
+  def __init__(self,gP,gI=None,gD=None,observe=None,action=None,crate=None,**ka):
     super().__init__(**ka)
     assert gP is not None
-    last = cum = None
+    last = cum = trig = None
+    T = 1/crate
     if action is not None: # otherwise, output = error
       assert callable(action)
       self.call = lambda t,call=self.call: action(call(t))
     if observe is not None: # otherwise, observation = input
       assert(callable(observe))
     def update(t,o,update=self.update):
-      nonlocal last, cum
+      nonlocal last, cum, trig
+      if t<=trig: return
+      trig += T
       tlast,olast = last
       dt = t-tlast
       r  = 0.
-      if gP is not None: r -= gP*o
-      if gD is not None: r -= gD*(o-olast)/dt
+      if gP is not None: r += gP*o
+      if gD is not None: r += gD*(o-olast)/dt
       if gI is not None:
         cum += .5*(olast+o)*dt
-        r -= gI*cum
+        r += gI*cum
       update(t,r)
       last = t,o
-    if observe is not None: update = lambda t,x,update=update: update(t,observe(x))
+    if observe is not None: update = lambda t,x,update=update: update(t,observe(t,x))
     self.update = update
-    def reset(o,reset=self.reset):
-      nonlocal last, cum
-      last = 0,o
+    def reset(t,o,reset=self.reset):
+      nonlocal last, cum, trig
+      trig = t+T
+      last = t,o
       cum = zeros(o.shape)
-      r = -gP*o
-      reset(r)
-    if observe is not None: reset = lambda x,reset=reset: reset(observe(x))
+      r = gP*o
+      reset(t,r)
+    if observe is not None: reset = lambda t,x,reset=reset: reset(t,observe(t,x))
     self.reset = reset
 
 #==================================================================================================

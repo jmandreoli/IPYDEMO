@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 from itertools import islice, count
 from numpy import array, sqrt, zeros, ones, seterr, abs, nan, isnan, linspace
 from .util import MultizoomAnimation
-from ..util import Setup
+from .. import Setup
 
 #==================================================================================================
 class Fractal:

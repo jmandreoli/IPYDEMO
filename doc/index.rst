@@ -14,10 +14,17 @@ Contents:
    odesimu.rst
    fractals.rst
 
+Available types and functions
+-----------------------------
+
+.. automodule:: IPYDEMO
+   :members:
+   :member-order: bysource
+   :show-inheritance:
+
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-

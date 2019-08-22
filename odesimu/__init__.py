@@ -11,8 +11,7 @@ logger = logging.getLogger(__name__)
 from functools import partial
 from numpy import array, zeros, nan, infty
 from scipy.integrate import ode
-from .util import Controller
-from ..util import Setup
+from .. import Setup
 
 """
 This module provides tools to easily implement simulations of dynamical systems defined by ODE's.
@@ -75,22 +74,25 @@ Returns the pair of the live and shadow display information associated with *sta
   r"""The shape (tuple of :class:`int` values) of the shadow display information to be buffered at each step. This attribute can be overridden in a subclass or instantiated at runtime."""
 
 #--------------------------------------------------------------------------------------------------
-  def runstep(self,ini,srate,maxtime=infty):
+  def runstep(self,ini,srate,listeners=(),maxtime=infty):
     r"""
 :param ini: initial state of the system
 :param srate: sampling rate in sec^-1
 :param maxtime: simulation time in sec (default to infinity)
+:param listeners: a list of pairs of functions (see below)
 
-Runs a simulation of the system from the initial state *ini* (time 0) until *maxtime*, sampled at rate *srate*. The successive states are returned by an iterator.
+Runs a simulation of the system from the initial state *ini* (time 0) until *maxtime*, sampled at rate *srate*. The successive states are returned by an iterator. The first component of each listener is invoked at the start of the iteration, then the second component is invoked at each new iteration. The listener functions are passed the current time and state.
     """
 #--------------------------------------------------------------------------------------------------
     from time import time
     r = ode(self.main,self.jacobian).set_integrator(**self.integrator)
     dt = 1/srate
     r.set_initial_value(ini,0.)
+    for f_ini,f in listeners: f_ini(0.,ini)
     last = time()
     while r.successful():
       yield r.t, r.y, time()-last
+      for f_ini,f in listeners: f(r.t,r.y)
       last = time()
       if r.t>maxtime: return
       r.integrate(r.t+dt)
@@ -173,6 +175,7 @@ If the ratio is above one, the simulation clock may lag behind the real clock. B
     'maxtime: total simulation time length [sec]',
     'taild: shadow duration [sec]',
     'hooks: tuple of display hooks',
+    'listeners: tuple of state trackers',
     maxtime=infty,srate=25.,
   )
   def launch(self,fig=dict(figsize=(9,9)),**ka):
@@ -189,51 +192,3 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
     if isinstance(fig,dict): fig = figure(**fig)
     animate = ka.pop('animate',{})
     return self.display(fig.add_axes((0,0,1,1),aspect='equal'),animate=partial(FuncAnimation,repeat=False,**animate),**ka)
-
-#==================================================================================================
-class ControlledSystem (System):
-
-  r"""
-Objects of this class are controlled systems. Its ODE is simply:
-
-.. math::
-
-   \begin{array}{rcl}
-   \frac{\mathbf{d}s}{\mathbf{d}t} & = & \gamma(t,s(t')_{t'\in O,t'<t})
-   \end{array}
-
-:math:`\gamma` is a function of time and of a finite sample of past states. Here, sampling is at regular intervals, defining the control rate.
-  """
-#==================================================================================================
-  def __init__(self,control):
-    r"""
-:param control: a controller
-:type control: util.Controller
-
-*control* implements function :math:`\gamma`.
-    """
-    assert isinstance(control,Controller)
-    self.control = control
-    def main(t,state):
-      x,y,xʹ,yʹ = state
-      xʺ,yʺ = control(t)
-      return array((xʹ,yʹ,xʺ,yʺ))
-    self.main = main
-    def fordisplay(state):
-      x,y,xʹ,yʹ = state
-      live = x,y
-      return live,live
-    self.fordisplay = fordisplay
-
-  def runstep(self,crate=None,ini=None,**ka):
-    r"""
-:param crate: control rate
-:type crate: :class:`float`
-
-The controller is initialised then updated with the pair (current-time,current-state) with rate *crate*
-    """
-    self.control.reset((0.,ini))
-    t0 = T = 1/crate
-    for t,y,start in super().runstep(ini=ini,**ka):
-      if t>t0: self.control.update(t,(t,y)); t0 += T
-      yield t,y,start
