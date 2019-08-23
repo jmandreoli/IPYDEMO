@@ -2,20 +2,13 @@
 # Contributors:         Jean-Marc Andreoli
 # Language:             python
 # Purpose:              Illustration of the odesimu subpackage
-
-if __name__=='__main__':
-  import sys
-  from IPYDEMO.demo.odesimu import demo
-  demo()
-  sys.exit(0)
-
+from make import RUN; RUN(__name__,__file__,2)
 #--------------------------------------------------------------------------------------------------
 
-from pathlib import Path; DIR = Path(__file__).parent.resolve()
+import subprocess
 from functools import partial
 from numpy import array,square,sqrt,cos,sin,arccos,arcsin,degrees,radians,pi,nan
 from ..odesimu import System
-automatic = False
 
 class Pendulum (System):
 
@@ -71,9 +64,13 @@ class Pendulum (System):
   def makestate(theta,dtheta=0.): return radians((theta,dtheta))
 
 def demo():
-  from matplotlib.pyplot import figure,show
+  from matplotlib.pyplot import figure,show,close
   syst = Pendulum(L=1.,G=9.81)
   fig = figure(figsize=(9,10))
-  a = syst.launch(fig,ini=syst.makestate(theta=90.,dtheta=240.),taild=.5,refsize=50.,maxtime=2.)
-  if automatic: fig.savefig(str(DIR/'odesimu.png'))
-  else: show()
+  anim = syst.launch(fig,ini=syst.makestate(theta=90.,dtheta=240.),taild=.5,refsize=50.,maxtime=3.)
+  def action():
+    anim.save(str(RUN.dir/'odesimu.mp4'))
+    subprocess.run(['ffmpeg','-loglevel','panic','-y','-i',str(RUN.dir/'odesimu.mp4'),str(RUN.dir/'odesimu.gif')])
+    close()
+  RUN.play(action)
+  show()

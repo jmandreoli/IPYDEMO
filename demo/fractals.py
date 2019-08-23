@@ -2,26 +2,24 @@
 # Contributors:         Jean-Marc Andreoli
 # Language:             python
 # Purpose:              Illustration of the odesimu subpackage
-
-if __name__=='__main__':
-  import sys
-  from IPYDEMO.demo.fractals import demo
-  demo()
-  sys.exit(0)
+from make import RUN; RUN(__name__,__file__,2)
 
 #--------------------------------------------------------------------------------------------------
 
-from pathlib import Path; DIR = Path(__file__).parent.resolve()
+import subprocess
 from functools import partial
 from numpy import square
 from ..fractals import Fractal
-automatic = False
 
-mandelbrot = Fractal((lambda z,c: square(z)+c),ibounds=((-2.5,1.),(-1.,1.)),eradius=2.)
+mandelbrot = Fractal((lambda z,c: square(z)+c),ibounds=((-.779,-.774),(.133,.138)),eradius=2.)
 
 def demo():
-  from matplotlib.pyplot import figure, show
+  from matplotlib.pyplot import figure, show, close
   fig = figure(figsize=(8,4))
-  a = mandelbrot.launch(fig,maxiter=50)
-  if automatic: fig.savefig(str(DIR/'fractals.png'))
-  else: show()
+  anim = mandelbrot.launch(fig,maxiter=100,interval=40)
+  def action():
+    anim.save(str(RUN.dir/'fractals.mp4'))
+    subprocess.run(['ffmpeg','-loglevel','panic','-y','-i',str(RUN.dir/'fractals.mp4'),str(RUN.dir/'fractals.gif')])
+    close()
+  RUN.play(action)
+  show()

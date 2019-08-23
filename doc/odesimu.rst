@@ -35,7 +35,7 @@ Method **display** performs the following steps:
 
 Typical output:
 
-.. image:: ../demo/odesimu.png
+.. image:: ../demo/odesimu.gif
    :scale: 50
 
 Available types and functions

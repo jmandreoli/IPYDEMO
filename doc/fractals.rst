@@ -20,8 +20,7 @@ This is achieved by the following program.
 
 Typical output:
 
-.. image:: ../demo/fractals.png
-   :scale: 50
+.. image:: ../demo/fractals.gif
 
 Available types and functions
 -----------------------------
