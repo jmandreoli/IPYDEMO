@@ -5,8 +5,9 @@
 # Purpose:              ODE simulation and visualisation
 #
 
-import logging
-logger = logging.getLogger(__name__)
+from __future__ import annotations
+from typing import Any, Union, Callable, Iterable, Mapping, Tuple
+import logging; logger = logging.getLogger(__name__)
 
 from functools import partial
 from numpy import array, zeros, nan, infty
@@ -40,12 +41,10 @@ Attributes and methods:
 
 #--------------------------------------------------------------------------------------------------
   @staticmethod
-  def main(t,state):
+  def main(t:float,state:array)->array:
     r"""
 :param t: current time
 :param state: current state of the system
-:type state: :class:`numpy.ndarray`
-:rtype: :class:`numpy.ndarray`
 
 This is function :math:`F` defining the ODE. Returns the temporal derivative of the state when the system is in state *state* at time *t*. Hence the returned array must have the same shape as *state*. This implementation raises an error, so this method must be overridden in a subclass or instantiated at runtime.
     """
@@ -54,7 +53,7 @@ This is function :math:`F` defining the ODE. Returns the temporal derivative of 
 
 #--------------------------------------------------------------------------------------------------
   @staticmethod
-  def fordisplay(state):
+  def fordisplay(state:array):
     r"""
 :param state: current state of the system
 :type state: :class:`numpy.ndarray`
@@ -64,7 +63,7 @@ Returns the pair of the live and shadow display information associated with *sta
 #--------------------------------------------------------------------------------------------------
     return state,state
 
-  jacobian = None
+  jacobian:Callable[[float,array],array] = None
   r"""The derivative w.r.t. state of function :math:`F` defining the ODE as :math:`J(t,s)_{uv}=\frac{\partial F_u}{\partial s_v}(t,s)`\, or :const:`None` if the Jacobian is too costly to compute (it is only used as an optimisation by some ODE solvers). If the state space is of dimension :math:`d`\, then the Jacobian must be of dimension :math:`d\times d`\."""
 
   integrator = dict(name='lsoda')
@@ -74,7 +73,7 @@ Returns the pair of the live and shadow display information associated with *sta
   r"""The shape (tuple of :class:`int` values) of the shadow display information to be buffered at each step. This attribute can be overridden in a subclass or instantiated at runtime."""
 
 #--------------------------------------------------------------------------------------------------
-  def runstep(self,ini,srate,listeners=(),maxtime=infty):
+  def runstep(self,ini:array,srate:float,listeners:List[Callable[float,array]]=(),maxtime:float=infty):
     r"""
 :param ini: initial state of the system
 :param srate: sampling rate in sec^-1
@@ -99,10 +98,9 @@ Runs a simulation of the system from the initial state *ini* (time 0) until *max
     else: raise Exception('ODE solver failed!')
 
 #--------------------------------------------------------------------------------------------------
-  def display(self,ax,disp,animate=None,taild=None,srate=None,hooks=(),**ka):
+  def display(self,ax,disp:Callable[[float,array,array],None],animate=None,taild:float=None,srate:float=None,hooks:List[Callable[[Any],Callable[[float],None]]]=(),**ka):
     r"""
 :param ax: matplotlib axes on which to display
-:type ax: :class:`matplotlib.Axes` instance
 :param disp: a display function (see below)
 :param animate: animation function
 :param taild: shadow duration in sec
@@ -118,7 +116,7 @@ A display hook is a function which is invoked once with argument *ax*, and retur
     """
 #--------------------------------------------------------------------------------------------------
     tailn = int(taild*srate)
-    tail = zeros((tailn,)+self.shadowshape,float)
+    tail = zeros((tailn,*self.shadowshape),float)
     tail[...] = nan
     ax.grid()
     hooks = list(hook for hook in (hookf(ax) for hookf in hooks) if hook is not None)
@@ -135,7 +133,7 @@ A display hook is a function which is invoked once with argument *ax*, and retur
 
 #--------------------------------------------------------------------------------------------------
   @staticmethod
-  def infohook(ax,srate):
+  def infohook(ax,srate:float):
     r"""
 A display hook which displays some information about the simulation:
 
@@ -148,13 +146,12 @@ If the ratio is above one, the simulation clock may lag behind the real clock. B
 #--------------------------------------------------------------------------------------------------
     from matplotlib.patches import Rectangle
     from time import time
-    ax.text(0.01,0.99,'time:',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
-    clockdisp = ax.text(0.07,0.99,'',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
-    lagdisp = ax.text(0.14,0.99,'',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
-    ratio_width = 0.1
-    ax.add_patch(Rectangle((.2,.99),ratio_width,-.01,transform=ax.transAxes,fill=False,ec='black',alpha=.8))
-    ratiodisp = ax.add_patch(Rectangle((.2,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='gray',alpha=.8))
-    ratio1disp = ax.add_patch(Rectangle((.2+ratio_width,.99),0.,-.01,transform=ax.transAxes,fill=True,lw=0,fc='black',alpha=.8))
+    top = .99
+    ax.text(0.01,top,'time:',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
+    clockdisp = ax.text(0.07,top,'',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
+    lagdisp = ax.text(0.14,top,'',transform=ax.transAxes,va='top',ha='left',color='black',backgroundcolor='white',size='x-small',alpha=.8)
+    ax.hlines(top,.2,.3,transform=ax.transAxes,color='gray',lw=1,alpha=.8)
+    ratiodisp = ax.plot((.2,.2),(top,top),'gray',(.3,.3),(top,top),'black',transform=ax.transAxes,lw=5,alpha=.8)
     start = None
     def info(t,comptime):
       nonlocal start
@@ -162,10 +159,10 @@ If the ratio is above one, the simulation clock may lag behind the real clock. B
       if start is None: start = walltime
       lag = walltime-start-t
       ratio = srate*comptime
-      lagdisp.set_text('{}{:.2f}'.format(('+' if lag>0 else '-'),lag) if abs(lag) >.1 else '')
       clockdisp.set_text('{:.2f}'.format(t))
-      ratiodisp.set_width(ratio_width*min(ratio,1.))
-      ratio1disp.set_width(ratio_width*max(ratio-1.,0.))
+      lagdisp.set_text('{:+.2f}'.format(lag) if abs(lag) >.1 else '')
+      ratiodisp[0].set_data((.2,.2+.1*min(ratio,1.)),(top,top))
+      ratiodisp[1].set_data((.3,.3+.1*max(ratio-1.,0.)),(top,top))
     return info
 
 #--------------------------------------------------------------------------------------------------

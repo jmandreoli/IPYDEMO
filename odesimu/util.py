@@ -14,7 +14,7 @@ from functools import wraps
 from .. import Setup
 
 #==================================================================================================
-def buffered(T=None,N=None,bufferException=type('bufferException',(Exception,),{})):
+def buffered(T:int=None,N:int=None):
   r"""
 :param T: size of the interval over which buffering is performed
 :param N: number of samples taken over that interval
@@ -40,14 +40,15 @@ A functor (decorator) which allows limited buffering of a function over the posi
         buf[:N+1] = buf[N:]
         buf[N:,0] += T; buf[N:,1:] = f(buf[N:,0:1])
         epoch += 1; n += N
-      else: raise bufferException(de)
+      else: raise buffered.Exception(de)
       v = buf[n:n+2,1:]
       return r*v[0]+(1.-r)*v[1]
     return F
   return tr
+buffered.Exception = type('bufferedException',(Exception,),{})
 
 #==================================================================================================
-def blurred(level=None,offset=0.,M=1000,ident=lambda f: f):
+def blurred(level:float=None,offset=0.,M:int=1000,ident=lambda f: f):
   r"""
 :param level: the degree of blurring, as a positive number.
 
@@ -57,7 +58,7 @@ A functor (decorator) which applies a multiplicative noise to a function. The mu
   if not level: return ident
   def noise(M):
     while True:
-      for x in exp(uniform(-level,level,(M,)+offset.shape)): yield x
+      for x in exp(uniform(-level,level,(M,*offset.shape))): yield x
   def tr(f):
     b = noise(M)
     @wraps(f)
@@ -67,7 +68,6 @@ A functor (decorator) which applies a multiplicative noise to a function. The mu
   return tr
 
 #==================================================================================================
-class DPiecewiseFuncException(Exception): pass
 class DPiecewiseFunc:
   r"""
 Objects of this class implement piecewise constant functions which are dynamically constructed.
@@ -77,35 +77,36 @@ Objects of this class implement piecewise constant functions which are dynamical
 Initially, the function is everywhere constant. Whenever a new change point is inserted, it must be greater than all the previous change points and all the arguments at which the function has already been evaluated, otherwise, an exception is raised. When the buffer is exceeded, old change points are forgotten and any attempt to evaluate the function before or at those old change points raises an exception.
   """
 #==================================================================================================
+  Exception = type('DPiecewiseFuncException',(Exception,),{})
   @Setup(
     'N: size of the buffer of change points',
   )
-  def __init__(self,N):
+  def __init__(self,N:int):
     self.changepoint = zeros((N,))
     self.value = None
     def call(t):
       if t>self.tmax: self.tmax = t
       n, = digitize((t,),self.changepoint,right=True)
-      if n==0: raise DPiecewiseFuncException('buffer exceeded',t)
+      if n==0: raise self.Exception('buffer exceeded',t)
       return self.value[n-1]
     self.call = call
 
-  def reset(self,t,v):
+  def reset(self,t:int,v):
     r"""
 (Re)initialises this function with a single change point at time *t* with value *v*.
     """
     if t is None: t = -infty
     self.changepoint[:] = -infty
-    self.value = zeros((self.changepoint.shape[0],)+v.shape)
+    self.value = zeros((self.changepoint.shape[0],*v.shape))
     self.changepoint[-1] = self.tmax = t
     self.value[-1] = v # only -1 needs to be initialised
 
-  def update(self,t,v):
+  def update(self,t:int,v):
     r"""
 Sets a new change point at time *t* with value *v*.
     """
-    if t<=self.changepoint[-1]: DPiecewiseFuncException('out-of-order update',t)
-    if t<self.tmax: raise DPiecewiseFuncException('obsolete update',t)
+    if t<=self.changepoint[-1]: self.Exception('out-of-order update',t)
+    if t<self.tmax: raise self.Exception('obsolete update',t)
     self.changepoint[:-1] = self.changepoint[1:]
     self.value[:-1] = self.value[1:]
     self.changepoint[-1] = t
@@ -145,10 +146,9 @@ class PIDController (DPiecewiseFunc,Controller):
   r"""
 Objects of this class implement rudimentary PID controllers.
 
-:param gain: proportional, integration, derivative gains
-:type gain: :class:`array`
+:param gP,gI,gD: proportional, integration, derivative gains
 
-An instance of this class defines the control as a piecewise constant function. A new change point is created by invoking method :meth:`update` passing it a time *t* and state *s* of the system at that time. The associated control is based on the difference between the value of function *observe* at *s* and the value of function *target* at *t*, using the PID scheme. Change points must be inserted in chronological order.
+An instance of this class defines the control as a piecewise constant function. A new change point is created by invoking method :meth:`update` passing it a time *t* and state *s* of the system at that time. The associated control is based on the value of function *observe* at *s*, using the PID scheme. Change points must be inserted in chronological order.
   """
 #==================================================================================================
   @Setup(
@@ -160,7 +160,7 @@ An instance of this class defines the control as a piecewise constant function. 
     'observe: input to observation transform',
     'action: error to output transform',
   )
-  def __init__(self,gP,gI=None,gD=None,observe=None,action=None,crate=None,**ka):
+  def __init__(self,gP,gI=None,gD=None,observe=None,action=None,crate:float=None,**ka):
     super().__init__(**ka)
     assert gP is not None
     last = cum = trig = None
