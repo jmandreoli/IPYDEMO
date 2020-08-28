@@ -173,7 +173,7 @@ An instance of this class defines the control as a piecewise constant function. 
     def update(t,o,update=self.update):
       nonlocal last, cum, trig
       if t<=trig: return
-      trig += T
+      trig = max(trig+T,t)
       tlast,olast = last
       dt = t-tlast
       r  = 0.
@@ -195,6 +195,7 @@ An instance of this class defines the control as a piecewise constant function. 
       reset(t,r)
     if observe is not None: reset = lambda t,x,reset=reset: reset(t,observe(t,x))
     self.reset = reset
+    self.listeners = lambda: dict(start=[lambda r: reset(r.t,r.y)],step=[lambda r: update(r.t,r.y)])
 
 #==================================================================================================
 def logger_hook(ax,logger,prefix='alt+'):
@@ -227,4 +228,4 @@ A display hook which displays a single marker whose position at time *t* is give
 #==================================================================================================
   for k,v in _dflt: ka.setdefault(k,v)
   trg_s = ax.scatter((0,),(0,),**ka)
-  return lambda t: trg_s.set_offsets((f(t),))
+  return dict(step=[lambda r: trg_s.set_offsets((f(r.t),))])
