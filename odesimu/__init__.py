@@ -101,7 +101,7 @@ Runs a simulation of the system from the initial state *ini* (time 0) until *max
       for f in listeners.get('error',()): f(r)
 
 #--------------------------------------------------------------------------------------------------
-  def display(self,ax:matplotlib.Axes,disp:Callable[[float,numpy.ndarray,numpy.ndarray],None],hooks:List[Callable[[matplotlib.Axes],Mapping[str,List[Callable[[scipy.integrate.ode],None]]]]]=(),animate=None,taild:float=None,srate:float=None,**ka):
+  def display(self,ax:matplotlib.Axes,disp:Callable[[float,numpy.ndarray,numpy.ndarray],None],hooks:List[Callable[[matplotlib.Axes],Mapping[str,List[Callable[[scipy.integrate.ode],None]]]]]=(),animate={},taild:float=None,srate:float=None,**ka):
     r"""
 :param ax: matplotlib axes on which to display
 :param disp: a display function (see below)
@@ -118,21 +118,37 @@ This method is meant to be overridden in subclasses to perform some initialisati
 A display hook is a function which is invoked once with argument *ax*, and returns a listener binding dependent on *ax*. Display hooks are meant to display side items other than the system.
     """
 #--------------------------------------------------------------------------------------------------
+    from matplotlib.animation import FuncAnimation
     tailn = int(taild*srate)
     tail = zeros((tailn,*self.shadowshape),float)
     tail[...] = nan
     ax.grid()
+    listeners = dict(start=[],step=[],stop=[],error=[])
+    for q,L in ka.pop('listeners',{}).items(): listeners[q].extend(L)
+    for hookf in (self.infohook,*hooks):
+      for q,L in (hookf(ax) or {}).items(): listeners[q].extend(L)
     def disp_(frm):
       t,state = frm
       live, shadow = self.fordisplay(state)
       tail[1:] = tail[:-1]
       tail[0] = shadow
       disp(t,live,tail)
-    listeners = dict(start=[],step=[],stop=[],error=[])
-    for q,L in ka.pop('listeners',{}).items(): listeners[q].extend(L)
-    for hookf in (self.infohook,*hooks):
-      for q,L in (hookf(ax) or {}).items(): listeners[q].extend(L)
-    return animate(ax.figure,interval=1000./srate,frames=partial(self.runstep,srate=srate,listeners=listeners,**ka),func=disp_)
+    running = True
+    def toggle_anim(ev):
+      nonlocal running
+      if ev.inaxes is not ax or ev.key!='ctrl+ ': return
+      if running: anim.event_source.stop()
+      else: anim.event_source.start()
+      running = not running
+    ax.figure.canvas.mpl_connect('key_press_event',toggle_anim)
+    anim = FuncAnimation(
+      ax.figure,
+      repeat=False,
+      interval=1000./srate,
+      frames=partial(self.runstep,srate=srate,listeners=listeners,**ka),
+      func=disp_,
+      **animate)
+    return anim
 
 #--------------------------------------------------------------------------------------------------
   @staticmethod
@@ -155,6 +171,7 @@ If the performance is above one, the simulation clock may lag behind the real cl
     ax.hlines(top,.2,.3,transform=ax.transAxes,color='gray',lw=1,alpha=.8)
     perfdisp = ax.plot((.2,.2),(top,top),'gray',(.3,.3),(top,top),'black',transform=ax.transAxes,lw=5,alpha=.8)
     enddisp = ax.text(.99,top,'',transform=ax.transAxes,va='top',ha='right',color='red',backgroundcolor='white',size='x-small')
+
     start = None
     def info(r):
       nonlocal start
@@ -162,7 +179,7 @@ If the performance is above one, the simulation clock may lag behind the real cl
       if start is None: start = walltime
       t = walltime-start
       sclockdisp.set_text(f'{r.t:.2f}')
-      wclockdisp.set_text(f'{t:.2f}' if abs(t-r.t) >.1 else '')
+      wclockdisp.set_text(f'{t:.0f}' if abs(t-r.t) >.1 else '')
       perfdisp[0].set_data((.2,.2+.1*min(r.perf,1.)),(top,top))
       perfdisp[1].set_data((.3,.3+.1*max(r.perf-1.,0.)),(top,top))
     def infoend(f):
@@ -192,9 +209,7 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
     """
 #--------------------------------------------------------------------------------------------------
     from matplotlib.pyplot import subplots
-    from matplotlib.animation import FuncAnimation
     subplot_kw = dict(**subplot_kw_); subplot_kw.update(ka.pop('subplot_kw',{}))
     fig_kw = dict(**fig_kw_); fig_kw.update(ka.pop('fig_kw',{}))
-    animate = ka.pop('animate',{})
     fig,ax = subplots(subplot_kw=subplot_kw,**fig_kw)
-    return self.display(ax,animate=partial(FuncAnimation,repeat=False,**animate),**ka)
+    return self.display(ax,**ka)
