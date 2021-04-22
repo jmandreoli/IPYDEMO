@@ -5,10 +5,9 @@
 # Purpose:              Utilities for ODE simulation
 #
 
-import logging
-logger = logging.getLogger(__name__)
+import logging; logger = logging.getLogger(__name__)
 
-from numpy import array, zeros, infty, linspace, hstack, exp, infty, digitize
+from numpy import array, zeros, linspace, hstack, exp, infty, digitize
 from numpy.random import uniform
 from functools import wraps
 from .. import Setup

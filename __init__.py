@@ -70,7 +70,7 @@ class display:
 
   def __repr__(self):
     def row(f):
-      yield '**** {} ****'.format(pname(f))
+      yield f'**** {pname(f)} ****'
       H,D = f.setup
       for argn,(txt,unit) in H.items():
         dv = '({:10})'.format(','.join(trim(D[a]) if a in D else '' for a in argn)) if any(a in D for a in argn) else ''
@@ -86,7 +86,7 @@ Setup.display = display
 #==================================================================================================
 
 def pname(f):
-  return '{}{}'.format(f.__qualname__,inspect.signature(f))
+  return f'{f.__qualname__}{inspect.signature(f)}'
 
 def functions(L):
   for x in L:

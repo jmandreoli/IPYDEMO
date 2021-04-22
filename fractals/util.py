@@ -52,14 +52,14 @@ At any zooming level, the frame iteration can be interrupted/resumed by pressing
     for _ in range(n): next(it)
     stack.append(State(enumerate(it,n)))
   def toggle_freeze(ev):
-    if ev.key != ' ': return
+    if ev.artist != txt: return
     stack[selection.level].toggle()
   try: ax.figure.canvas.toolbar.setVisible(False)
   except: pass
   stack = []
-  txt = ax.text(.001,.999,'',ha='left',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes)
+  txt = ax.text(.001,.999,'',ha='left',va='top',backgroundcolor='w',color='k',fontsize='xx-small',transform=ax.transAxes,picker=True)
   selection = ZoomSelection(ax,newzoom=new_zoom)
-  ax.figure.canvas.mpl_connect('key_press_event',toggle_freeze)
+  ax.figure.canvas.mpl_connect('pick_event',toggle_freeze)
   return FuncAnimation(ax.figure,func=Func,frames=Frames,**ka)
 
 #==================================================================================================
