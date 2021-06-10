@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 from itertools import islice, count
 from numpy import sqrt, zeros, seterr, abs, nan, isnan, linspace
 from .util import MultizoomAnimation
-from .. import Setup
 
 __all__ = 'Fractal',
 
@@ -34,19 +33,16 @@ Objects of this class represent abstract fractals, defined by a function :math:`
 
 remains bounded.
 
-Parameter *main* is assumed to be function :math:`u` implemented as a ufunc.
+An escape oracle for the fractal is a boolean function :math:`R` such that if :math:`R(z_n(c))` for some :math:`n`, then the sequence :math:`(z_n(c))_{n\in\mathbb{N}}` is provably unbounded and :math:`c` does not belong to the fractal.
 
-Parameter *eoracle* is an escape oracle of the fractal, i.e. a boolean function :math:`R` such that if :math:`R(z_n(c))` for some :math:`n`, then the sequence :math:`(z_n(c))_{n\in\mathbb{N}}` is provably unbounded and :math:`c` does not belong to the fractal. If *eoracle* is given as a number `r`, then it is taken to be the function `(lambda z: abs(z)>r)`.
+:param main: function :math:`u` implemented as a ufunc
+:param eoracle: escape oracle of the fractal (if given as a number `r`, then it is taken to be the function `(lambda z: abs(z)>r)`)
+:param ibounds: area of interest of the fractal
 
 Attributes and methods:
   """
 #==================================================================================================
 
-  @Setup(
-    'main: generator of fractal views at increasing precision',
-    'eoracle: escape oracle of the fractal',
-    'ibounds: area of interest of the fractal',
-  )
   def __init__(self,main,eoracle=None,ibounds=None):
     self.main = main
     self.eoracle = (lambda z,r=eoracle: abs(z)>r) if isinstance(eoracle,(int,float)) else eoracle
@@ -113,12 +109,7 @@ Displays this fractal, initially zooming on *ibounds*, and allows multizoom navi
     return MultizoomAnimation(ax,disp_,frames=frames,init_func=(lambda: None),**ka)
 
 #--------------------------------------------------------------------------------------------------
-  @Setup(
-    'maxiter: max number of iterations',
-    'resolution: number of pixels to display',
-    'interval: inter-frame time [msec]',
-    maxiter=1000,resolution=160000,interval=100
-  )
+  launch_defaults = dict(maxiter=1000,resolution=160000,interval=100)
   def launch(self,fig=dict(figsize=(8,8)),**ka):
     r"""
 :param animate: animation optional parameters (as a dictionary)
@@ -130,4 +121,4 @@ Creates matplotlib axes, then runs a simulation of the system and displays it as
 #--------------------------------------------------------------------------------------------------
     from matplotlib.pyplot import figure
     if isinstance(fig,dict): fig = figure(**fig)
-    return self.display(fig.add_axes((0,0,1,1),xticks=(),yticks=(),aspect='equal'),repeat=False,**ka)
+    return self.display(fig.add_axes((0,0,1,1),xticks=(),yticks=(),aspect='equal'),repeat=False,**dict(self.launch_defaults,**ka))

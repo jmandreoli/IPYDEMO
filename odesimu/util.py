@@ -5,113 +5,135 @@
 # Purpose:              Utilities for ODE simulation
 #
 
+from __future__ import annotations
 import logging; logger = logging.getLogger(__name__)
 
-from numpy import array, zeros, linspace, hstack, exp, infty, digitize
+from numpy import ndarray, array, zeros, linspace, hstack, exp, infty, digitize, amax, iterable, isclose
 from numpy.random import uniform
 from functools import wraps
-from .. import Setup
+from itertools import count
+from .core import ODEEnvironment
 
 #==================================================================================================
-def buffered(T:int=None,N:int=None):
+def buffered(T:int=None,N:int=None,page:int=0):
   r"""
-:param T: size of the interval over which buffering is performed
-:param N: number of samples taken over that interval
+:param T: size of the buffer page
+:param N: number of samples taken over each page
+:param page: the index of the initial leftmost buffer page
 
-A functor (decorator) which allows limited buffering of a function over the positive reals. The set of positive reals is partitioned into contiguous intervals of length *T* called bins. At any time, two adjacent bins are kept in a buffer, starting with the leftmost two bins. For each buffer bin, the values of the function over that bin are pre-computed at *N* equidistant samples.
+A functor (decorator) which allows limited buffering of a function over the reals. The set of reals is partitioned into contiguous intervals of length *T* called pages. Page 0 starts at 0. At any time, two adjacent pages are kept in a buffer, starting with *page* on the leftmost side. For each buffer page, the values of the function over that page are pre-computed at *N* equidistant samples. This form of buffering is useful when successive invocations of the function tend to stay within the same page, and the page change rate is lower than the invocation rate. Three cases may occur on an invocation:
 
-* If an invocation is requested for an argument within the buffer, the result is computed by interpolation from the pre-computed values.
-* If an invocation is requested for an argument outside the buffer, it must be in the bin which is immediately right-adjacent to the buffer, otherwise an :class:`Exception` is raised. The buffer is then shifted one bin rightward to include the new bin and the old leftmost bin is dropped.
+* If the argument is within the buffer, the result is computed by interpolation from the pre-computed values.
+* If the argument is in the page which is immediately right-adjacent (resp. left-adjacent) to the buffer, the buffer is shifted one page rightward (resp. leftward) to include the argument and the old leftmost (resp. rightmost) page is dropped.
+* Otherwise the buffer is entirely reset to include the argument in its rightmost (resp. leftmost) page, depending on whether the argument is on the left (resp. right) of the current buffer.
   """
 #==================================================================================================
-  def tr(f):
-    epoch = 0
-    buf = linspace(0,2*T,2*N+1)[:,None]
-    buf = hstack((buf,f(buf)))
-    step = T/N
+  def transform(f):
     @wraps(f)
     def F(t):
-      nonlocal epoch
-      k,dt = divmod(t,step); r=dt/step; e,n = divmod(int(k),N); de = e-epoch
-      if de==0: pass
-      elif de==1: n += N
-      elif de==2:
+      k,dt = divmod(t,step); r = dt/step; p,n = divmod(int(k),N); dp = p-F.page
+      if dp==0: pass
+      elif dp==1: n += N
+      elif dp==2:
         buf[:N+1] = buf[N:]
-        buf[N:,0] += T; buf[N:,1:] = f(buf[N:,0:1])
-        epoch += 1; n += N
-      else: raise buffered.Exception(de)
+        buf[N1:,0] += T; buf[N1:,1:] = f(buf[N1:,0:1])
+        F.page += 1; n += N
+      elif dp==-1:
+        buf[N:] = buf[:N1]
+        buf[:N,0] -=T; buf[:N,1:] = f(buf[:N,0:1])
+        F.page -= 1
+      else:
+        if dp<0: p -= 1; n += N
+        buf[:,0] = linspace(p*T,(p+2)*T,2*N+1)
+        buf[:,1:] = f(buf[:,0:1])
+        F.page = p
       v = buf[n:n+2,1:]
       return r*v[0]+(1.-r)*v[1]
+    F.page = page
+    F.step = step = T/N
+    buf = linspace(page*T,(page+2)*T,2*N+1)[:,None]
+    F.buffer = buf = hstack((buf,f(buf)))
+    N1 = N+1
     return F
-  return tr
-buffered.Exception = type('bufferedException',(Exception,),{})
+  return transform
 
 #==================================================================================================
-def blurred(level:float=None,offset=0.,M:int=1000,ident=lambda f: f):
+def blurred(level:float=None,offset=0.,chunk:int=1000,_ident=lambda f: f):
   r"""
-:param level: the degree of blurring, as a positive number.
+:param level: the degree of blurring, as a positive number
+:param offset: centre of blurring
 
-A functor (decorator) which applies a multiplicative noise to a function. The multiplicative coefficient follows a log-uniform distribution between -*level* and *level*. Two invocations of the blurred function, whether they have the same argument or not, are blurred independently. *offset* if added to the function before blurring and subtracted afterwards.
+A functor (decorator) which applies a multiplicative noise to a function. The multiplicative coefficient follows a log-uniform distribution between -*level* and *level*. Two invocations of the blurred function, whether they have the same argument or not, are blurred independently. *offset* if subtracted to the function before blurring and re-added afterwards.
   """
 #==================================================================================================
-  if not level: return ident
-  def noise(M):
-    while True:
-      for x in exp(uniform(-level,level,(M,*offset.shape))): yield x
-  def tr(f):
-    b = noise(M)
+  if not level: return _ident
+  def transform(f):
+    noise = (x for _ in count() for x in exp(uniform(-level,level,(chunk,*offset.shape))))  # infinite stream of noise
     @wraps(f)
-    def F(*a,**ka): return (f(*a,**ka)+offset)*next(b)-offset
+    def F(*a,**ka): return (f(*a,**ka)-offset)*next(noise)+offset
     return F
   offset = array(offset)
-  return tr
+  return transform
 
 #==================================================================================================
-class DPiecewiseFunc:
+class DPiecewise:
   r"""
-Objects of this class implement piecewise constant functions which are dynamically constructed.
+Instances of this class implement piecewise constant functions which are dynamically constructed.
 
 :param N: size of the buffer of change points
+:param right: whether change point intervals include rightmost value (hence function is left-continuous)
 
 Initially, the function is everywhere constant. Whenever a new change point is inserted, it must be greater than all the previous change points and all the arguments at which the function has already been evaluated, otherwise, an exception is raised. When the buffer is exceeded, old change points are forgotten and any attempt to evaluate the function before or at those old change points raises an exception.
   """
 #==================================================================================================
-  Exception = type('DPiecewiseFuncException',(Exception,),{})
-  @Setup(
-    'N: size of the buffer of change points',
-  )
-  def __init__(self,N:int):
-    self.changepoint = zeros((N,))
-    self.value = None
-    def call(t):
-      if t>self.tmax: self.tmax = t
-      n, = digitize((t,),self.changepoint,right=True)
-      if n==0: raise self.Exception('buffer exceeded',t)
-      return self.value[n-1]
-    self.call = call
+  class Exception(Exception): pass
+  right:bool
+  tmax:float
+  r"""largest value at which the function has been evaluated"""
+  changepoint:ndarray
+  r"""position of the change points"""
+  value:ndarray
+  r"""values on right of changepoints"""
 
-  def reset(self,t:int,v):
+  def __init__(self,N:int,right:bool=True):
+    self.changepoint = zeros((N,),dtype=float)
+    self.right = right
+
+  def reset(self,t:float,v:iterable):
     r"""
 (Re)initialises this function with a single change point at time *t* with value *v*.
     """
     if t is None: t = -infty
+    v = array(v)
     self.changepoint[:] = -infty
-    self.value = zeros((self.changepoint.shape[0],*v.shape))
+    self.value = zeros((self.changepoint.shape[0],*v.shape),dtype=v.dtype)
     self.changepoint[-1] = self.tmax = t
-    self.value[-1] = v # only -1 needs to be initialised
+    self.value[-1] = v  # only -1 needs to be initialised
+    return self
 
-  def update(self,t:int,v):
+  def update(self,t:float,v:iterable):
     r"""
 Sets a new change point at time *t* with value *v*.
     """
-    if t<=self.changepoint[-1]: self.Exception('out-of-order update',t)
-    if t<self.tmax: raise self.Exception('obsolete update',t)
+    if t <= self.changepoint[-1]: raise DPiecewise.Exception('out-of-order update',t)
+    if t < self.tmax: raise DPiecewise.Exception('obsolete update',t,self.tmax)
+    v = array(v)
     self.changepoint[:-1] = self.changepoint[1:]
     self.value[:-1] = self.value[1:]
     self.changepoint[-1] = t
     self.value[-1] = v
+    return self
 
-  def __call__(self,t): return self.call(t)
+  def __call__(self,t):
+    r"""
+Returns the value of this function at *t*. Works also as a ufunc.
+    """
+    if iterable(t): t = array(t,dtype=float); tmax = amax(t); q = (lambda n: n)
+    else: t = array((t,),dtype=float); tmax = t[0]; q = (lambda n: n[0])
+    self.tmax = max(tmax,self.tmax)
+    n = digitize(t,self.changepoint,right=self.right)
+    if any(n==0): raise DPiecewise.Exception('buffer exceeded',t)
+    return self.value[q(n-1)]
 
 #==================================================================================================
 class Controller:
@@ -141,7 +163,7 @@ Records an observation *o* at time *t*. This implementation raises an error, so 
     raise NotImplementedError()
 
 #==================================================================================================
-class PIDController (DPiecewiseFunc,Controller):
+class PIDController (DPiecewise,Controller):
   r"""
 Objects of this class implement rudimentary PID controllers.
 
@@ -150,81 +172,57 @@ Objects of this class implement rudimentary PID controllers.
 An instance of this class defines the control as a piecewise constant function. A new change point is created by invoking method :meth:`update` passing it a time *t* and state *s* of the system at that time. The associated control is based on the value of function *observe* at *s*, using the PID scheme. Change points must be inserted in chronological order.
   """
 #==================================================================================================
-  @Setup(
-    DPiecewiseFunc.__init__,
-    'gP: proportional control gain as error quantity per observation quantity [err]',
-    'gI: integral control gain [err.sec^-1]',
-    'gD: derivative control gain [err.sec]',
-    'crate: control rate [sec^-1]',
-    'observe: input to observation transform',
-    'action: error to output transform',
-  )
-  def __init__(self,gP,gI=None,gD=None,observe=None,action=None,crate:float=None,**ka):
+  last = None
+  cumul = None
+
+  def __init__(self,gP,gI=None,gD=None,observe=None,action=None,**ka):
     super().__init__(**ka)
     assert gP is not None
-    last = cum = trig = None
-    T = 1/crate
-    if action is not None: # otherwise, output = error
-      assert callable(action)
-      self.call = lambda t,call=self.call: action(call(t))
-    if observe is not None: # otherwise, observation = input
-      assert(callable(observe))
-    def update(t,o,update=self.update):
-      nonlocal last, cum, trig
-      if t<=trig: return
-      trig = max(trig+T,t)
-      tlast,olast = last
-      dt = t-tlast
-      r  = 0.
-      if gP is not None: r += gP*o
-      if gD is not None: r += gD*(o-olast)/dt
-      if gI is not None:
-        cum += .5*(olast+o)*dt
-        r += gI*cum
-      update(t,r)
-      last = t,o
-    if observe is not None: update = lambda t,x,update=update: update(t,observe(t,x))
-    self.update = update
-    def reset(t,o,reset=self.reset):
-      nonlocal last, cum, trig
-      trig = t+T
-      last = t,o
-      cum = zeros(o.shape)
-      r = gP*o
-      reset(t,r)
-    if observe is not None: reset = lambda t,x,reset=reset: reset(t,observe(t,x))
-    self.reset = reset
-    self.listeners = lambda: dict(start=[lambda r: reset(r.t,r.y)],step=[lambda r: update(r.t,r.y)])
+    self.gain = gP,gI,gD
+    if action is not None: assert callable(action); self.action = action
+    if observe is not None: assert callable(observe); self.observe = observe
+
+  @staticmethod
+  def action(x): return x
+  @staticmethod
+  def observe(t,s): return s
+
+  def update(self,t,s):
+    o = self.observe(t,s)
+    gP,gI,gD = self.gain
+    tlast,olast = self.last
+    dt = t-tlast
+    r  = 0.
+    if gP is not None: r += gP*o
+    if gD is not None: r += gD*(o-olast)/dt
+    if gI is not None:
+      self.cumul += .5*(olast+o)*dt
+      r += gI*self.cumul
+    self.last = t,o
+    return super().update(t,r)
+
+  def reset(self,t,s):
+    o = self.observe(t,s)
+    self.last = t,o
+    self.cumul = zeros(o.shape)
+    r = self.gain[0]*o
+    return super().reset(t,r)
+
+  def __call__(self,t): return self.action(super().__call__(t))
 
 #==================================================================================================
-def logger_hook(ax,logger,prefix='alt+'):
+def period_hook(control:Controller,env:ODEEnvironment):
   r"""
-:param ax: matplotlib axes on which to display
-:type ax: :class:`matplotlib.Axes` instance
-:param logger: a logger object
-:type logger: :class:`logging.Logger`
-:param prefix: the code of a meta-key as produced by :mod:`matplotlib`
-
-Allows the logging level of *logger* to be controlled through the keyboard: when the canvas of *ax* has focus, pressing keys i, w, e, c while holding the *prefix* key pressed, sets the logging level to INFO, WARN, ERROR, CRITICAL respectively.
+Modifies the simulation period of the environment *env* so that it at each beginning of period, the controller *control* is reset (first period) or updated (subsequent periods).
   """
 #==================================================================================================
-  D = dict(i=logging.INFO,w=logging.WARN,e=logging.ERROR,c=logging.CRITICAL)
-  D = dict((prefix+k,v) for k,v in D.items())
-  def setlevel(ev):
-    lvl = D.get(ev.key)
-    if lvl is not None: logger.setLevel(lvl)
-  ax.figure.canvas.mpl_connect('key_press_event',setlevel)
-
-#==================================================================================================
-def marker_hook(ax,f,_dflt=dict(marker='*',c='r').items(),**ka):
-  r"""
-:param ax: matplotlib axes on which to display
-:type ax: :class:`matplotlib.Axes` instance
-:param f: a function with one parameter
-
-A display hook which displays a single marker whose position at time *t* is given by *f(t)*.
-  """
-#==================================================================================================
-  for k,v in _dflt: ka.setdefault(k,v)
-  trg_s = ax.scatter((0,),(0,),**ka)
-  return dict(step=[lambda r: trg_s.set_offsets((f(r.t),))])
+  def period(P=env.period):
+    control.reset(env.now,env.state)
+    for p in P():
+      yield p
+      if control.tmax>env.now: # should not be needed but ode solver sometimes look ahead
+        logger.warning('re-adjusting tmax %s -> %s',control.tmax,env.now)
+        control.tmax = env.now
+      control.update(env.now,env.state)
+  env.period = period
+  return env

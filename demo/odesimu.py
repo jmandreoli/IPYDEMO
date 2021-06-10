@@ -6,64 +6,69 @@ from make import RUN; RUN(__name__,__file__,2)
 #--------------------------------------------------------------------------------------------------
 
 import subprocess
-from functools import partial
-from numpy import array,square,sqrt,cos,sin,arccos,arcsin,degrees,radians,pi,nan
+from collections import namedtuple
+from enum import Enum
+from numpy import array,square,sqrt,cos,sin,arccos,arcsin,degrees,radians,pi,isclose
 from ..odesimu import System
+Trajectory = namedtuple('Trajectory','periodicity alpha T name display')
+Periodicity = Enum('Periodicity','Aperiodic Periodic IncrementalPeriodic')
 
 class Pendulum (System):
 
-  shadowshape = (2,)
-
   def __init__(self,L,G): self.L,self.G,self.a = L,G,-G/L
 
-  def main(self,t,state): # required
+  def fun(self,t,state): # required
     theta,dtheta = state
     return array((dtheta,self.a*sin(theta)))
 
-  def jacobian(self,t,state): # optional
+  def jac(self,t,state): # optional
     theta,dtheta = state
     return array(((0,1),(self.a*cos(theta),0)))
 
-  def fordisplay(self,state): # required
-    theta,dtheta = state
-    pos = self.L*array((sin(theta),-cos(theta)))
-    return pos, pos
+  @staticmethod
+  def makestate(theta,dtheta=0.): return radians((theta,dtheta)) # required
 
-  def display(self,ax,refsize=None,ini=None,**ka): # required
-    from matplotlib.patches import Arc
-    L = 1.05*self.L; ax.set_xlim(-L,L); ax.set_ylim(-L,L)
+  def displayer(self,env,ax,refsize=None): # required
+    trajectory = self.trajectory(env.init_y)
+    ax.set_title(f'trajectory:{trajectory.name}',fontsize='x-small')
+    L = 1.05*self.L
+    ax.set(xlim=(-L,L),ylim=(-L,L))
     ax.scatter((0.,),(0.,),c='k',marker='o',s=refsize)
-    T, alpha = self.trajectory(ini)
-    ax.scatter((-self.L*sin(alpha),self.L*sin(alpha)),(-self.L*cos(alpha),-self.L*cos(alpha)),marker='o',c='none')
-    alphadeg = degrees(alpha)
-    ax.add_patch(Arc((0.,0.),2*self.L,2*self.L,theta1=-alphadeg-90,theta2=alphadeg-90,ls='--',ec='r'))
-    ax.set_title(r'Pendulum[length:{:.2f}$m$ gravity:{:.2f}$ms^{{-2}}$ period:{:.2f}$s$]'.format(self.L,self.G,T),fontsize='small')
-    #
-    rod_a, = ax.plot((),(),'k')
-    bob_a = ax.scatter((),(),s=refsize,marker='o',c='r')
-    shadow_a, = ax.plot((),(),'g',lw=3)
-    #
-    def disp(t,live,tail):
-      x,y = live
-      rod_a.set_data((0,x),(0,y))
-      bob_a.set_offsets(((x,y),))
-      shadow_a.set_data(tail[:,0],tail[:,1])
-    #
-    return super().display(ax,disp,ini=ini,**ka)
+    trajectory.display(ax)
+    a_pole, = ax.plot((),(),'k')
+    a_bob = ax.scatter((),(),s=refsize,marker='o',c='r')
+    a_tail, = ax.plot((),(),'y')
+    def disp():
+      x,y = self.cartesian(env.state)
+      a_pole.set_data((0,x),(0,y))
+      a_bob.set_offsets(((x,y),))
+      a_tail.set_data(*self.cartesian(env.cached_states))
+    return disp
 
   def trajectory(self,ini):
     from scipy.integrate import quad
     theta,dtheta = ini
     c = .5*square(dtheta)/self.a+cos(theta)
-    k,alpha = (1,pi) if c<-1 else (nan,pi) if c==-1 else (2,arccos(c)) if c<1 else (nan,0)
-    T = pi/sqrt(2) if alpha<.1 else quad((lambda theta,c=c: 1/sqrt(cos(theta)-c)),0,alpha)[0]
-    T *= k*sqrt(-2/self.a)
-    return T,alpha
+    if isclose(c,-1):
+      periodicity = Periodicity.Aperiodic; name = 'aperiodic'; T = None; alpha = pi
+    else:
+      if c<-1: periodicity = Periodicity.IncrementalPeriodic; name = 'incremental period'; alpha = pi
+      else: periodicity = Periodicity.Periodic; name = 'half-period'; alpha = arccos(c)
+      T = pi/sqrt(2) if isclose(alpha,0.) else quad((lambda theta,c=c: 1/sqrt(cos(theta)-c)),0,alpha)[0]
+      T *= sqrt(2/self.a)
+      name = f'{name}: {T:.2f}'
+    name = f'CircularArc($R$={self.L:.2f},$\\alpha$={degrees(alpha):.2f}) {name}'
+    def display(ax):
+      from matplotlib.patches import Arc
+      ax.scatter(*zip(*map(self.cartesian,((-alpha,0),(alpha,0)))),marker='+',c='k')
+      ax.add_patch(Arc((0,0),2*self.L,2*self.L,-90,-degrees(alpha),degrees(alpha),color='k',ls='dashed'))
+    return Trajectory(periodicity,alpha,T,name,display)
 
-  @staticmethod
-  def makestate(theta,dtheta=0.): return radians((theta,dtheta))
+  def cartesian(self,state):
+    theta,dtheta = state
+    return self.L*array((sin(theta),-cos(theta)))
 
-def demo():
+def demo():## TO BE REVISED
   from matplotlib.pyplot import figure,show,close
   syst = Pendulum(L=1.,G=9.81)
   fig = figure(figsize=(9,10))

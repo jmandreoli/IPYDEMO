@@ -33,9 +33,7 @@ The helper for a list of :func:`Setup` annotated functions can be obtained by in
     assert inspect.isfunction(f)
     if D:
       @wraps(f)
-      def F(*a,**ka):
-        for k,v in D.items(): ka.setdefault(k,v)
-        return f(*a,**ka)
+      def F(*a,**ka): return f(*a,**dict(D,**ka))
     else: F = f
     F.setup = H_,D_
     return F
