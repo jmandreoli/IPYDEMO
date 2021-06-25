@@ -10,7 +10,7 @@ import logging; logger = logging.getLogger(__name__)
 
 from numpy import ndarray, array, zeros, linspace, hstack, exp, infty, digitize, amax, iterable, isclose
 from numpy.random import uniform
-from functools import wraps
+from functools import wraps, partial
 from itertools import count
 from .core import ODEEnvironment
 
@@ -217,12 +217,46 @@ Modifies the simulation period of the environment *env* so that it at each begin
   """
 #==================================================================================================
   def period(P=env.period):
-    control.reset(env.now,env.state)
+    control.reset(env.now,env.statef(env.now))
     for p in P():
       yield p
       if control.tmax>env.now: # should not be needed but ode solver sometimes look ahead
         logger.warning('re-adjusting tmax %s -> %s',control.tmax,env.now)
         control.tmax = env.now
-      control.update(env.now,env.state)
+      control.update(env.now,env.statef(env.now))
   env.period = period
   return env
+
+#==================================================================================================
+def target_displayer(pos,**ka):
+  r"""
+A helper function to create a displayer of a time only function *pos* returning pairs of scalar coordinates.
+  """
+#==================================================================================================
+  return lambda env,ax: lambda a=ax.scatter((),(),**ka): a.set_offsets(pos(env.now))
+
+#==================================================================================================
+class PIDControlledMixin:
+  r"""
+A helper mixin class which can be added as *first* mixin in :class:`.core.System` sub-classes.
+  """
+#==================================================================================================
+  @staticmethod
+  def pos(x):
+    r"""Returns the position of the target in the Euclidian space as a function of its value *x*. This implementation assumes position equals value."""
+    return x
+  @staticmethod
+  def gap(o,state):
+    r"""Returns the gap between the observation *o* of the target and the *state* of the system. This implementation assumes the observation and state space are identical, and returns the difference between the observation and the state."""
+    return o-state
+
+  display_defaults = dict(c='g',marker='^',label='target')
+
+  def __init__(self,control_kw,target,*a,**ka):
+    blur = control_kw.pop('blur',None)
+    otarget = target if blur is None else blurred(level=blur)(target) if isinstance(blur,float) else blurred(**blur)(target)
+    self.target_displayer = target_displayer((lambda t: self.pos(target(t))),**self.display_defaults)
+    super().__init__(PIDController(observe=(lambda t,state: self.gap(otarget(t),state)),**control_kw),*a,**ka)
+
+  def launch(self,*displayers,**ka):
+    return super().launch(self.target_displayer,*displayers,hooks=(partial(period_hook,self.control),),**ka)

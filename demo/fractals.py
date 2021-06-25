@@ -1,13 +1,12 @@
-# File:                 demo/odesimu.py
+# File:                 demo/fractals.py
 # Contributors:         Jean-Marc Andreoli
 # Language:             python
-# Purpose:              Illustration of the odesimu subpackage
+# Purpose:              Illustration of the fractals subpackage
 from make import RUN; RUN(__name__,__file__,2)
 
 #--------------------------------------------------------------------------------------------------
 
 import subprocess
-from functools import partial
 from numpy import square
 from ..fractals import Fractal
 
