@@ -20,18 +20,17 @@ The following program implements the corresponding simulation.
 
 The behaviour of the system is captured by class **Pendulum**, which extends class **odesimu.System**. The following methods must be provided:
 
-* **main**, which defines the ODE of the system,
-* **fordisplay**, which computes the information needed for display, and
-* **display**, which actually performs the display.
+* **fun**, which defines the ODE of the system,
+* **makestate**, which converts a user friendly state specification into an actual state
+* **displayer**, which takes as input an ODE environment (instance of :class:`ODEEnvironment`) as well as a plot axes (instance of :class:`matplotlib.Axes`) and returns the function which displays the ODE environment onto the plot axes.
 
-Attribute **shadowshape**, which is the shape of the shadow information attached to the system, must also be provided. Method **jacobian** is optional. It defines the Jacobian of the ODE, which some ODE solvers can use for optimisation purposes. It is given here, as it is straightforward to compute.
+Method **jac** is optional. It defines the Jacobian of the ODE, which some ODE solvers can use for optimisation purposes. It is given here, as it is straightforward to compute.
 
-Method **display** performs the following steps:
+Method **displayer** performs the following steps:
 
 * apply various configurations to *ax*, which is an instance of **matplotlib.axes.Axes**: here, set the limits and the title, and draw the pivot and trajectory of the bob, as, in this simple example, it can easily be computed;
-* define the matplotlib artists, initially empty, capturing the dynamic components of the simulation: here *rod_a* (pendulum's rod as a straight line segment), *bob_a* (pendulum's bob as a single point) and *shadow_a* (shadow of the buffered previous positions of the bob, as a curve);
-* define the display refresher function *disp* invoked each time a new system state is computed by the ODE solver: it updates the dynamic components of the simulation;
-* finally, invoke method **display** from the superclass, passing *ax* and *disp* as first two arguments.
+* define the matplotlib artists, initially empty, capturing the dynamic components of the simulation: here *a_pole* (pendulum's pole as a straight line segment), *a_bob* (pendulum's bob as a single point) and *a_tail* (tail of the bob, i.e. buffered previous positions of the bob, as a curve);
+* define the display refresher function *disp* invoked each time a new system state is computed by the ODE solver: it updates the dynamic components of the simulation.
 
 Typical output:
 
@@ -41,7 +40,7 @@ Typical output:
 Available types and functions
 -----------------------------
 
-.. automodule:: IPYDEMO.odesimu
+.. automodule:: IPYDEMO.odesimu.core
    :members:
    :member-order: bysource
    :show-inheritance:

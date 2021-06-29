@@ -5,26 +5,25 @@
 # Purpose:              Fractal definition and visual exploration
 #
 
-import logging
-logger = logging.getLogger(__name__)
+from __future__ import annotations
+import logging; logger = logging.getLogger(__name__)
+from typing import Any, Union, Callable, Iterable, Mapping, Tuple
 
 from itertools import count
-from functools import partial, cached_property
-from numpy import sqrt, zeros, abs, nan, isnan, linspace
+from functools import cached_property
+from collections import namedtuple
+from numpy import ndarray, sqrt, zeros, abs, nan, isnan, linspace
 from .util import Selection
 
-__all__ = 'Fractal',
+__all__ = 'Fractal', 'MultiZoomFractal', 'FractalBrowser',
 
 #==================================================================================================
 class Fractal:
   r"""
 :param main: a function (see below)
 :param eoracle: escape oracle of the sequence defining this fractal object
-:type eoracle: :class:`Union[float,Callable[[float],bool]]`
-:param ibounds: area of interest of this fractal object, as a bounding box
-:type ibounds: pair(pair(:class:`float`))
 
-Objects of this class represent abstract fractals, defined by a function :math:`u:\mathbb{C}\times\mathbb{C}\mapsto\mathbb{C}` as the set of complex numbers :math:`c` such that the sequence
+An instance of this class represents an abstract fractal, defined by a function :math:`u:\mathbb{C}\times\mathbb{C}\mapsto\mathbb{C}` as the set of complex numbers :math:`c` such that the sequence
 
 .. math::
 
@@ -34,25 +33,22 @@ Objects of this class represent abstract fractals, defined by a function :math:`
 
 remains bounded.
 
-An escape oracle for the fractal is a boolean function :math:`R` such that if :math:`R(z_n(c))` for some :math:`n`, then the sequence :math:`(z_n(c))_{n\in\mathbb{N}}` is provably unbounded and :math:`c` does not belong to the fractal.
+An escape oracle for the fractal is a boolean function :math:`R` such that if :math:`R(z_n(c))` is true for some :math:`n`, then the whole sequence :math:`(z_n(c))_{n\in\mathbb{N}}` is unbounded and :math:`c` does not belong to the fractal.
 
 :param main: function :math:`u` implemented as a ufunc
 :param eoracle: escape oracle of the fractal (if given as a number `r`, then it is taken to be the function `(lambda z: abs(z)>r)`)
-:param ibounds: rectangle of interest of the fractal as (x-min,x-max),(y-min,y-max))
 
 Attributes and methods:
   """
 #==================================================================================================
 
-  def __init__(self,main,eoracle=None):
+  def __init__(self,main:Callable[[complex],complex],eoracle:Union[float,Callable[[float],bool]]=None):
     self.main = main
     self.eoracle = (lambda z,r=float(eoracle): abs(z)>r) if isinstance(eoracle,(int,float)) else eoracle
 
 #--------------------------------------------------------------------------------------------------
   def generate(self,grid):
     r"""
-:param grid: an array of complex numbers
-
 Successively yields the "temperature" grid :math:`\theta_n(c)` taken on all the points :math:`c` in the grid for :math:`n=1\ldots\infty`, where
 
 .. math::
@@ -67,6 +63,8 @@ In other words, the temperature :math:`\theta_n(c)` of a point :math:`c` is the 
 * A temperature below :math:`1` characterises a point which is provably out of this fractal, and the value of the temperature reflects the effort (number of iterations) that was required to reach that decision.
 
 Note that when :math:`n\rightarrow\infty`, the temperature :math:`\theta_n(c)` tends to :math:`1` if :math:`c` belongs to this fractal, and :math:`0` otherwise.
+
+:param grid: an array of complex numbers
     """
 #--------------------------------------------------------------------------------------------------
     eoracle = self.eoracle
@@ -80,31 +78,40 @@ Note that when :math:`n\rightarrow\infty`, the temperature :math:`\theta_n(c)` t
 
 #==================================================================================================
 class MultiZoomFractal (Fractal):
+  r"""
+An instance of this class is a fractal together with a stack of rectangles of the complex plane, where each rectangle in the stack entirely contains its successor. For each rectangle in the stack, a grid with a certain resolution is created and the iterable of corresponding temperature grids is computed.
+
+:param ibounds: a recommended rectangle of interest, in the form as a pair of pairs (x-min,x-max),(y-min,y-max)
+  """
 #==================================================================================================
 
-  def __init__(self,*a,ibounds=None,grid=None,**ka):
+  Entry = namedtuple('StackEntry','status seq bounds resolution')
+
+  def __init__(self,*a,ibounds:Tuple[Tuple[float,float],Tuple[float,float]]=None,**ka):
     super().__init__(*a,**ka)
     self.stack = []
-    self.precision = []
-    self.grid = partial(self.lingrid,resolution=grid) if isinstance(grid,int) else grid
-    self.push(ibounds)
+    self.ibounds = ibounds
 
   def trace(self,i,seq):
-    precision = self.precision
-    for x in seq: precision[i] += 1; yield precision[i],x
+    status = self.stack[i].status
+    for x in seq: status[0] += 1; status[1] = x; yield x
 
-  def push(self,bounds,i=None):
-    if i is None: i = len(self.stack)
-    else: del self.stack[i:], self.precision[i:]
-    p = self.precision[i-1] if i>0 else 0
-    seq = self.generate(self.grid(bounds))
-    for _ in range(p): next(seq)
-    x = bounds,self.trace(i,seq)
-    self.stack.append(x)
-    self.precision.append(p)
-    return x
+  def push(self,resolution,bounds=None,i=0):
+    r"""
+Adds the rectangle defined by *bounds* (by default the initial recommended rectangle) with resolution *resolution* at level *i* in the stack (default at the bottom of the stack). All the entries after *i* are deleted.
+    """
+    if bounds is None: bounds= self.ibounds
+    del self.stack[i:]
+    p = self.stack[i-1].status[0] if i>0 else 1
+    seq = self.generate(self.grid(bounds,resolution))
+    for _ in range(p): x = next(seq)
+    e = self.Entry([p,x],self.trace(i,seq),bounds,resolution)
+    self.stack.append(e)
+    return e
 
-  def lingrid(self,bounds,resolution=None):
+  @staticmethod
+  def grid(bounds:Tuple[Tuple[float,float],Tuple[float,float]]=None,resolution:int=None):
+    r"""May be refined in subclasses or at the instance level"""
     (xmin,xmax),(ymin,ymax) = bounds
     r = (ymax-ymin)/(xmax-xmin)
     Ny = int(sqrt(resolution*r)); Nx = int(resolution/Ny) # Ny/Nx~r and Nx.Ny~resolution
@@ -113,63 +120,39 @@ class MultiZoomFractal (Fractal):
 #==================================================================================================
 class FractalBrowser:
   r"""
-:param ax: matplotlib axes on which to display
-:type ax: :class:`matplotlib.Axes` instance
-:param maxiter: max number of iterations (precision is increased at each iteration)
-:type maxiter: :class:`int`
-:param resolution: number of pixels to display
-:type resolution: :class:`int`
-:param ibounds: bounding box for the initial zoom (defaults to the area of interest)
+:param content: the fractal to browse
 
-Displays this fractal, initially zooming on *ibounds*, and allows multizoom navigation.
+An instance of this class is a fractal browser, which allows zooming at controlled resolution.
+
+.. attribute player::
+   An object managing the user control (selected automatically based on the :mod:`matplotlib` backend, but can be changed)
   """
 #==================================================================================================
-  def __init__(self,content:MultiZoomFractal,play_kw={},**ka):
-    from matplotlib.animation import FuncAnimation
-    from matplotlib.patches import Rectangle
-    def refresh(entry):
-      nonlocal bounds,seq
-      bounds,seq = entry
-      img.set_extent((*bounds[0],*bounds[1]))
-      display(seq)
-      player.set_level(level,len(content.stack)-1)
-      if level == len(content.stack)-1: rect.set(visible=False)
-      else:
-        (xmin,xmax),(ymin,ymax) = content.stack[level+1][0]
-        rect.set(bounds=(xmin,ymin,xmax-xmin,ymax-ymin),visible=True)
-      fig.canvas.draw_idle()
-    def select(bounds_):
-      nonlocal level
-      level += 1
-      refresh(content.push(bounds_,level))
-    self.select = select
-    def set_level(level_):
-      nonlocal level
-      level = level_
-      refresh(content.stack[level])
-    self.set_level = set_level
-    def set_running(b=None):
-      nonlocal running
-      running = b = ((not running) if b is None else b)
-      if b: anim.resume()
-      else: anim.pause()
-      player.set_running(b)
-    self.set_running = set_running
-    def frames():
-      set_running(False)
-      while True: yield seq
-    def display(seq):
-      p,a = next(seq)
-      player.set_precision(p)
-      img.set_array(a)
-    running,level,(bounds,seq) = None,0,content.stack[0]
-    self.player = player = self.player_factory(self,**play_kw)
-    fig = player.board
-    ax = fig.add_axes((0,0,1,1),xticks=(),yticks=(),aspect='equal',navigate=False)
-    img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,extent=(*bounds[0],*bounds[1]),origin='lower',cmap='jet',interpolation='bilinear')
-    rect = ax.add_patch(Rectangle((0,0),width=0,height=0,alpha=.2,color='k',visible=False,lw=3,zorder=5))
-    self.selection = Selection(ax,select,alpha=.4,zorder=10)
-    self.anim = anim = FuncAnimation(fig,display,frames,init_func=(lambda:None),repeat=False,**ka)
+
+  def __init__(self,content:MultiZoomFractal,**ka):
+    def displayer(fig,select):
+      from matplotlib.patches import Rectangle
+      ax = fig.add_axes((0,0,1,1),xticks=(),yticks=(),aspect='equal',navigate=False)
+      bounds,stack,push = content.ibounds,content.stack,content.push
+      img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,extent=(*bounds[0],*bounds[1]),origin='lower',cmap='jet',interpolation='bilinear')
+      rect = ax.add_patch(Rectangle((0,0),width=0,height=0,alpha=.2,color='k',visible=False,lw=3,zorder=5))
+      self.selection = Selection(ax,select,alpha=.4,zorder=10)
+      level = entry = None
+      def disp(i,new=None):
+        nonlocal level,entry
+        if i==level: a = next(entry.seq)
+        else:
+          level,entry = i,(stack[i] if new is None else push(*new,i))
+          img.set_extent((*entry.bounds[0],*entry.bounds[1]))
+          if i == len(stack)-1: rect.set(visible=False)
+          else:
+            (xmin,xmax),(ymin,ymax) = stack[i+1].bounds
+            rect.set(bounds=(xmin,ymin,xmax-xmin,ymax-ymin),visible=True)
+          a = entry.status[1]
+        img.set_array(a)
+        return entry.status[0]
+      return disp
+    self.player = self.player_factory(displayer,**ka)
 
   @cached_property
   def player_factory(self):

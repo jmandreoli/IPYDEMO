@@ -5,9 +5,16 @@
 # Purpose:              Utilities for fractal display
 #
 
-import logging
-logger = logging.getLogger(__name__)
-from matplotlib.pyplot import figure, rcParams
+from __future__ import annotations
+
+import traceback
+from typing import Any, Union, Callable, Iterable, Mapping, Sequence, Tuple
+import logging; logger = logging.getLogger(__name__)
+
+from matplotlib import rcParams
+from matplotlib.pyplot import figure
+from matplotlib.figure import Figure
+from matplotlib.animation import FuncAnimation
 from matplotlib.backend_bases import MouseButton
 from matplotlib.patches import Rectangle
 try: from myutil.ipywidgets import app, SimpleButton # so this works even if ipywidgets is not available
@@ -16,7 +23,7 @@ except: app = object
 #==================================================================================================
 class Selection:
 #==================================================================================================
-  def __init__(self,ax,callback=(lambda *a: None),min_size=1e-10,**ka):
+  def __init__(self,ax,callback=None,min_size=1e-10,**ka):
     ax.figure.canvas.mpl_connect('button_press_event',self.start)
     ax.figure.canvas.mpl_connect('button_release_event',self.stop)
     ax.figure.canvas.mpl_connect('motion_notify_event',self.updt)
@@ -49,63 +56,140 @@ class Selection:
       else: self.callback((tuple(sorted((p[0],p1[0]))),tuple(sorted((p[1],p1[1])))))
 
 #==================================================================================================
-class widget_player (app):
+class player_base:
+  r"""
+An instance of this class controls the exploration of a fractal.
+
+:param display: a function which, given a zoom level and possibly its new specification, displays it on the board
+  """
 #==================================================================================================
-  def __init__(self,master,fig_kw={},children=(),toolbar=()):
-    from ipywidgets import BoundedIntText,Text,Label
-    w_running = SimpleButton(icon='')
-    w_level = BoundedIntText(0,min=0,max=0,layout=dict(width='1.6cm',padding='0cm'))
-    w_precision = Text('',layout=dict(width='1.6cm',padding='0cm'))
-    super().__init__(children,toolbar=(w_running,Label('level:'),w_level,Label('precision:'),w_precision,*toolbar))
-    self.board = self.mpl_figure(**fig_kw)
-    w_running.on_click(lambda b: master.set_running())
-    w_level.observe(lambda c: master.set_level(c.new),'value')
-    def set_running(b): w_running.icon = 'pause' if b else 'play'
-    self.set_running = set_running
-    def set_level(i,imax):
-      with w_level.hold_trait_notifications(): w_level.max = imax; w_level.value = i
-    self.set_level = set_level
-    def set_precision(p): w_precision.value = str(p)
-    self.set_precision = set_precision
+
+  def __init__(self,display:Callable[[int,Any],None],**ka):
+    def frames():
+      self.select(None); self.setrunning(False); yield None
+      while True: yield self.level
+    self.level = -1
+    self.anim = FuncAnimation(self.board,(lambda i: None if i is None else self.show_precision(display(i))),frames,init_func=(lambda: None),repeat=False,**ka)
+
+  def setrunning(self,b:bool=None):
+    r"""Sets the running state of the animation to *b* (if :const:`None`, the inverse of current running state)."""
+    if b is None: b = not self.running
+    self.running = b
+    if b: self.anim.resume()
+    else: self.anim.pause()
+    self.show_running(b)
+
+  def show_running(self,b:bool):
+    r"""Shows the current running state as *b*. This implementation raises an error."""
+    raise NotImplementedError()
+
+  def show_precision(self,p:int):
+    r"""Shows the current precision as *p*. This implementation raises an error."""
+    raise NotImplementedError()
+
+  def select(self,bounds:Union[Tuple[Tuple[float,float],Tuple[float,float]],None]):
+    r"""Pushes a new level in the animation at the current level plus one. This implementation raises an error."""
+    raise NotImplementedError()
 
 #==================================================================================================
-class mpl_player:
+class widget_player (app,player_base):
+  r"""
+This class refines :class:`player_base` for backends which support :mod:`ipywidgets`.
+
+:param displayer: passed the board figure as well as the selector on that board, returns the *display* argument of the superclass
+:param resolution: the (constant) resolution for all the zoom level (total number of pixels to display)
+  """
 #==================================================================================================
-  def __init__(self,master,tbsize=((.15,.8,1.4),.15),fig_kw={}):
+  def __init__(self,displayer:Callable[[Figure,Selection],Callable[[int,Any],None]],resolution:int=None,fig_kw={},children=(),toolbar=(),**ka):
+    from ipywidgets import BoundedIntText,IntText,Label
+    def select(bounds_):
+      i = self.level+1
+      w_level.active = False
+      w_level.max = i; w_level.value = i
+      setlevel(i,(resolution,bounds_))
+      w_level.active = True
+    def show_running(b): w_running.icon = 'pause' if b else 'play'
+    def show_precision(p): w_precision.value = p
+    self.select = select
+    self.show_precision = show_precision
+    self.show_running = show_running
+    def setlevel(i,new=None):
+      self.level = i
+      w_precision.value = display(i,new)
+      board.canvas.draw_idle()
+    # global design and widget definitions
+    w_running = SimpleButton(icon='')
+    w_level = BoundedIntText(0,min=0,max=0,layout=dict(width='1.6cm',padding='0cm'))
+    w_level.active = True
+    w_precision = IntText(0,disabled=True,layout=dict(width='1.6cm',padding='0cm'))
+    super().__init__(children,toolbar=(w_running,Label('level:'),w_level,Label('precision:'),w_precision,*toolbar))
+    self.board = board = self.mpl_figure(**fig_kw)
+    display = displayer(board,select)
+    # callbacks
+    w_running.on_click(lambda b: self.setrunning())
+    w_level.observe((lambda c: (setlevel(c.new) if w_level.active else None)),'value')
+    super(app,self).__init__(display,**ka)
+
+#==================================================================================================
+class mpl_player (player_base):
+  r"""
+This class refines :class:`player_base` for backends which do not support :mod:`ipywidgets`.
+
+:param displayer: passed the board figure as well as the selector on that board, returns the *display* argument of the superclass
+:param resolution: the (constant) resolution for all the zoom level (total number of pixels to display)
+  """
+#==================================================================================================
+  def __init__(self,displayer:Callable[[Figure,Selection],Callable[[int,Any],None]],resolution:int=None,fig_kw={},tbsize=((.15,.8,.15,1.4),.15),**ka):
+    level_max = 0
+    def select(bounds_):
+      nonlocal level_max
+      level_max = i = self.level+1
+      setlevel(i,(resolution,bounds_))
+    def show_running(b): play_toggler.set(text='II' if b else '|>'); toolbar.canvas.draw_idle()
+    def show_precision(p): prec_disp.set(text=str(p)); toolbar.canvas.draw_idle()
+    self.select = select
+    self.show_running = show_running
+    self.show_precision = show_precision
+    def setlevel(i,new=None):
+      self.level = i
+      level_disp.set(text=f'{i}/{level_max}')
+      show_precision(display(i,new))
+      main.canvas.draw_idle()
+    # global design
     tbsize_ = sum(tbsize[0])
     figsize = fig_kw.pop('figsize',None)
     if figsize is None: figsize = rcParams['figure.figsize']
     figsize_ = list(figsize); figsize_[1] += tbsize[1]; figsize_[0] = max(figsize_[0],tbsize_)
     self.main = main = figure(figsize=figsize_,**fig_kw)
     r = tbsize[1],figsize[1]
-    toolbar,self.board = main.subfigures(nrows=2,height_ratios=r)
+    toolbar,board = main.subfigures(nrows=2,height_ratios=r)
+    self.board = board
+    display = displayer(board,select)
     r = list(tbsize[0])
-    r[2] += figsize_[0]-tbsize_
+    r[-1] += figsize_[0]-tbsize_
     g = dict(width_ratios=r,wspace=0.,bottom=0.,top=1.,left=0.,right=1.)
-    axes = toolbar.subplots(ncols=3,subplot_kw=dict(xticks=(),yticks=(),navigate=False),gridspec_kw=g)
+    axes = toolbar.subplots(ncols=4,subplot_kw=dict(xticks=(),yticks=(),navigate=False),gridspec_kw=g)
     # widget definition
-    play_toogler = axes[0].text(.5,.5,'',ha='center',va='center',transform=axes[0].transAxes)
-    axes[1].text(.1,.5,'level:',ha='left',va='center',transform=axes[1].transAxes)
-    level_ctrl = axes[1].text(.6,.5,'0/',ha='left',va='center',transform=axes[1].transAxes)
-    level_ctrl.current = 0,0
-    axes[2].text(.1,.5,'precision:',ha='left',va='center',transform=axes[2].transAxes)
-    prec_ctrl = axes[2].text(.3,.5,'',ha='left',va='center',transform=axes[2].transAxes)
-    def on_key_press(ev):
-      key = ev.key
-      if ev.inaxes is not None and (key == 'left' or key == 'right'):
-        i,imax = level_ctrl.current
-        i += (+1 if key == 'right' else -1)
-        if 0<=i<=imax: master.set_level(i)
+    ax = axes[0]
+    play_toggler = ax.text(.5,.5,'',ha='center',va='center',transform=ax.transAxes)
+    ax = axes[1]
+    ax.text(.1,.5,'level:',ha='left',va='center',transform=ax.transAxes)
+    level_disp = ax.text(.6,.5,'0/0',ha='left',va='center',transform=ax.transAxes)
+    ax = axes[2]
+    ax.set(xlim=(0,1),ylim=(0,1))
+    level_ctrl, = ax.plot((0.,1.,.5,0.,.5,1.),(.5,.5,0.,.5,1.,.5),c='k')
+    ax = axes[3]
+    ax.text(.1,.5,'precision:',ha='left',va='center',transform=ax.transAxes)
+    prec_disp = ax.text(.3,.5,'',ha='left',va='center',transform=ax.transAxes)
+    # callbacks
     def on_button_press(ev):
-      if ev.button == MouseButton.LEFT and ev.key is None and ev.inaxes is play_toogler.axes:
-        master.set_running(); toolbar.canvas.draw_idle()
-    toolbar.canvas.mpl_connect('key_press_event',on_key_press)
+      if ev.button == MouseButton.LEFT and ev.key is None:
+        if ev.inaxes is play_toggler.axes: self.setrunning()
+        elif ev.inaxes is level_ctrl.axes:
+          if .45<ev.ydata<.55: return
+          i = self.level+(+1 if ev.ydata>.55 else -1)
+          if 0<=i<=level_max: setlevel(i)
     toolbar.canvas.mpl_connect('button_press_event',on_button_press)
-    def set_running(b): play_toogler.set(text='II' if b else '|>')
-    self.set_running = set_running
-    def set_level(i,imax): level_ctrl.set(text=f'{i}/{imax}'); level_ctrl.current = i,imax
-    self.set_level = set_level
-    def set_precision(p): prec_ctrl.set(text=str(p))
-    self.set_precision = set_precision
+    super().__init__(display,**ka)
 
   def _ipython_display_(self): return repr(self)

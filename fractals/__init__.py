@@ -1,5 +1,5 @@
 """
-This module implements the visualisation/exploration of fractals defined by an iterative function system.
+This module implements the browsing of fractals defined by an iterative function system.
 """
 
 from .core import *

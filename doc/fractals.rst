@@ -25,7 +25,7 @@ Typical output:
 Available types and functions
 -----------------------------
 
-.. automodule:: IPYDEMO.fractals
+.. automodule:: IPYDEMO.fractals.core
    :members:
    :member-order: bysource
    :show-inheritance:

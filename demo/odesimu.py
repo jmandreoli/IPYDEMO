@@ -65,23 +65,23 @@ class Pendulum (System):
       T *= sqrt(2/self.a)
       name = f'{name}: {T:.2f}'
     name = f'CircularArc($R$={self.L:.2f},$\\alpha$={degrees(α):.2f}) {name}'
-    def displayer(ax):
+    def display(ax):
       from matplotlib.patches import Arc
       ax.set_title(f'Trajectory:{name}',fontsize='x-small')
       ax.scatter(*zip(*map(self.cartesian,((-α,0),(α,0)))),marker='+',c='k')
       ax.add_patch(Arc((0,0),2*self.L,2*self.L,-90,-degrees(α),degrees(α),color='k',ls='dashed'))
-    return Trajectory(periodicity,α,T,name,displayer)
+    return Trajectory(periodicity,α,T,name,display)
 
 def demo():
   from matplotlib.pyplot import show,close
   syst = Pendulum(L=2.,G=9.81)
-  s = SimpySimulation(
+  R = SimpySimulation(
     syst.launch(init_y=dict(theta=90.,dtheta=120.),period=10.,cache=(10,.05),max_step=.05),
-    play_kw=dict(track=[6.],save_count=150),
-    frame_per_stu=25,
+    play_kw=dict(track=[6.],frame_per_stu=25,fig_kw=dict(figsize=(7,7)),save_count=150),
   )
   def action():
-    s.player.anim.save(str(RUN.dir/'odesimu.mp4'))
+    for a in 'get_size_inches','set_size_inches','savefig': setattr(R.player.board,a,getattr(R.player.main,a)) # very ugly trick because board is a subfigure
+    R.player.anim.save(str(RUN.dir/'odesimu.mp4'))
     subprocess.run(['ffmpeg','-loglevel','panic','-y','-i',str(RUN.dir/'odesimu.mp4'),str(RUN.dir/'odesimu.gif')])
     close()
   RUN.play(action)
