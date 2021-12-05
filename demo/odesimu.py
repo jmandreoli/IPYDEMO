@@ -64,7 +64,7 @@ class Pendulum (System):
       T = pi/sqrt(2) if isclose(α,0.) else quad((lambda θ,c=c: 1/sqrt(cos(θ)-c)),0,α)[0]
       T *= sqrt(2/self.a)
       name = f'{name}: {T:.2f}'
-    name = f'CircularArc($R$={self.L:.2f},$\\alpha$={degrees(α):.2f}) {name}'
+    name = f'CircularArc($R={self.L:.2f}$,$\\alpha={degrees(α):.2f}$) {name}'
     def display(ax):
       from matplotlib.patches import Arc
       ax.set_title(f'Trajectory:{name}',fontsize='x-small')
