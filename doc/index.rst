@@ -10,8 +10,8 @@ Welcome to IPYDEMO's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   odesimu.rst
-   fractals.rst
+   mod_odesimu.rst
+   mod_fractals.rst
 
 Indices and tables
 ==================

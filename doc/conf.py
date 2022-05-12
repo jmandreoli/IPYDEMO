@@ -15,8 +15,8 @@
 # sys.path.insert(0, os.path.abspath('.'))
 
 import sys,pathlib
-sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.parent.parent))
-def setup(app):
+sys.path.insert(0,str(pathlib.Path(__file__).resolve().with_name('_syspath')))
+def x_setup(app):
   from inspect import isbuiltin
   def fixbug(app,what,name,obj,skip,options):
     if isbuiltin(obj): return True
@@ -36,10 +36,10 @@ author = 'Jean-Marc Andreoli'
 # ones.
 extensions = [
     'sphinx.ext.autodoc',
-    #'sphinx_autodoc_typehints', # temporarily broken (2020-07-13); see https://github.com/agronholm/sphinx-autodoc-typehints/issues/129
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
 ]
+autodoc_typehints = 'description'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
