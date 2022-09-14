@@ -16,7 +16,7 @@
 
 import sys,pathlib
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().with_name('_syspath')))
-def x_setup(app):
+def setup(app):
   from inspect import isbuiltin
   def fixbug(app,what,name,obj,skip,options):
     if isbuiltin(obj): return True

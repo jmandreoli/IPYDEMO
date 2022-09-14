@@ -191,5 +191,3 @@ This class refines :class:`player_base` for backends which do not support :mod:`
           if 0<=i<=level_max: setlevel(i)
     toolbar.canvas.mpl_connect('button_press_event',on_button_press)
     super().__init__(display,**ka)
-
-  def _ipython_display_(self): return repr(self)

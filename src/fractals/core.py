@@ -37,8 +37,6 @@ An escape oracle for the fractal is a boolean function :math:`R` such that if :m
 
 :param main: function :math:`u` implemented as a ufunc
 :param eoracle: escape oracle of the fractal (if given as a number `r`, then it is taken to be the function `(lambda z: abs(z)>r)`)
-
-Attributes and methods:
   """
 #==================================================================================================
 
@@ -123,11 +121,11 @@ class FractalBrowser:
 :param content: the fractal to browse
 
 An instance of this class is a fractal browser, which allows zooming at controlled resolution.
-
-.. attribute player::
-   An object managing the user control (selected automatically based on the :mod:`matplotlib` backend, but can be changed)
   """
 #==================================================================================================
+
+  player:Any
+  r"""An object managing the user control (selected automatically based on the :mod:`matplotlib` backend, but can be changed)"""
 
   def __init__(self,content:MultiZoomFractal,**ka):
     def displayer(fig,select):
@@ -153,11 +151,11 @@ An instance of this class is a fractal browser, which allows zooming at controll
         return entry.status[0]
       return disp
     self.player = self.player_factory(displayer,**ka)
+    try: self._repr_mimebundle_ = self.player._repr_mimebundle_
+    except: pass
 
   @cached_property
   def player_factory(self):
     from matplotlib import get_backend
     from .util import widget_player,mpl_player
     return widget_player if 'ipympl' in get_backend() else mpl_player
-
-  def _ipython_display_(self): return self.player._ipython_display_()

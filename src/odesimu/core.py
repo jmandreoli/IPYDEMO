@@ -36,7 +36,7 @@ The initial simulation time and state are given by *init_t* and *init_y*, respec
 * If *period* is an immutable iterable of :class:`float` instances, the interval spans are taken to be these numbers
 * Otherwise, *period* must be a generator of :class:`float` instances
 
-Various specifications of the ODE are passed through *ka* to function :func:`scipy.integrate.solve_ivp`. At least function :math:`F` must be passed as keyword argument ``fun``.
+Various specifications of the ODE are passed through *spec* to function :func:`scipy.integrate.solve_ivp`. At least function :math:`F` must be passed as keyword argument ``fun``.
 
 The cache specification *cache* is either :const:`None`, in which case no caching is performed, or a pair of the cache length and the cache period, independent of the simulation period generator. The cache contains the states sampled at a sequence of decreasing multiples of the cache period. The size of the sequence is chosen so that at any time in the current simulation span, the sequence clipped above at that time has length at least equal to the cache length, unless the initial time is reached before.
 
@@ -64,10 +64,10 @@ The cache specification *cache* is either :const:`None`, in which case no cachin
   r"""The cache itself (the time axis is the last axis)"""
 
   def __init__(self,period:Union[float,Iterable[float],Callable[[],float]]=None,cache:Tuple[int,float]=None,init_t:float=0.,init_y:ndarray=None,**spec):
-    if not callable(period):
-      if isinstance(period,float): assert period>0; period = partial(repeat,period)
-      else: assert all((isinstance(x,float) and x>0) for x in islice(period,10)); period = partial(iter,period)
-    self.period = period
+    if callable(period): period_ = period
+    elif isinstance(period,float): assert period>0; period_ = partial(repeat,period)
+    else: assert all((isinstance(x,float) and x>0) for x in islice(period,10)); period_ = partial(iter,period)
+    self.period = period_
     self.cache_init(cache)
     self.init_y = array(init_y)
     self.spec = spec
@@ -90,8 +90,8 @@ The cache specification *cache* is either :const:`None`, in which case no cachin
       self.cache_update(t_f)
       yield self.timeout(p)
 
-  def run(self,t=None):
-    super().run(t)
+  def run(self,until=None):
+    super().run(until)
     self.state = self.statef(self.now)
 
   def error_statef(self,t,message=None): raise self.Exception(message)
