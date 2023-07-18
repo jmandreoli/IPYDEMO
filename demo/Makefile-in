@@ -4,4 +4,4 @@ TARGET := fractals.out odesimu.out
 all: ${TARGET}
 
 %.out: %.py
-	@export PYTHONPATH=../.. ; ${PYTHON} make.py $(patsubst %.py,%,$<) 2
+	@export PYTHONPATH=../src ; ${PYTHON} make.py $(patsubst %.py,%,$<) 2
