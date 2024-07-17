@@ -13,7 +13,7 @@ from functools import partial
 from itertools import repeat, islice
 from scipy.integrate import solve_ivp
 from myutil.simpy import RobustEnvironment
-from numpy import ndarray,array,arange,concatenate,infty
+from numpy import ndarray,array,arange,concatenate
 
 __all__ = 'ODEEnvironment', 'System',
 

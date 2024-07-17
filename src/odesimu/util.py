@@ -8,7 +8,7 @@
 from __future__ import annotations
 import logging; logger = logging.getLogger(__name__)
 
-from numpy import ndarray, array, zeros, linspace, hstack, exp, infty, digitize, amax, iterable, isclose
+from numpy import ndarray, array, zeros, linspace, hstack, exp, inf, digitize, amax, iterable, isclose
 from numpy.random import uniform
 from functools import wraps, partial
 from itertools import count
@@ -103,9 +103,9 @@ Initially, the function is everywhere constant. Whenever a new change point is i
     r"""
 (Re)initialises this function with a single change point at time *t* with value *v*.
     """
-    if t is None: t = -infty
+    if t is None: t = -inf
     v = array(v)
-    self.changepoint[:] = -infty
+    self.changepoint[:] = -inf
     self.value = zeros((self.changepoint.shape[0],*v.shape),dtype=v.dtype)
     self.changepoint[-1] = self.tmax = t
     self.value[-1] = v  # only -1 needs to be initialised
