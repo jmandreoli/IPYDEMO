@@ -8,8 +8,10 @@
 from __future__ import annotations
 from typing import Any, Union, Callable, Iterable, Generator, Mapping, Tuple, List, Optional, Any
 import mip
-from collections import defaultdict, namedtuple
-from numpy import array, argmax, random
+from collections import defaultdict
+from numpy import argmax, random
+
+__all__ = 'colouring', 'PolyhedronSpec'
 
 def colouring(N:Iterable[int],R:Iterable[Iterable[int]],*init:Iterable[Tuple[int,int]])->Generator[Tuple[int,Mapping[int,int]]]:
   r"""
@@ -64,14 +66,17 @@ This is solved by MILP.
       else: raise Exception('Internal error',status)
 
 class Multipath:
-  # An instance of this class is a multi-path, i.e. a set of edge-disjoint paths with an index of the nodes they visit
+  r"""
+An instance of this class is a multi-path, i.e. a set of edge-disjoint, non contiguous paths with an index of the nodes they visit
+  """
   def __init__(self):
     self.paths = paths = []; self.inpath = inpath = defaultdict(set); self.loop = None
     def add(s):
       ends = s[0][0],s[-1][-1]; k = len(paths); paths.append((ends,s))
       for n in (ends[0],*(e[1] for e in s)): inpath[n].add(k)
     self.add = add
-  def add_n(self,*nodes): self.add(list(zip(nodes[:-1],nodes[1:])))
+  def add_n(self,*nodes:Iterable[int]):
+    self.add(list(zip(nodes[:-1],nodes[1:])))
   def __repr__(self):
     x = ' '.join((' '.join(map(str,(f'{k}:[',s[0][0],*(e[1] for e in s),']'))) for k,(_,s) in enumerate(self.paths)))
     return f'{{{x}}}'
@@ -79,7 +84,9 @@ class Multipath:
   @staticmethod
   def from_oriented_edges(edges:Iterable[Tuple[int,int]])->Multipath:
     r"""
+Extracts a :class:`Multipath` object from a set of oriented edges.
 
+:param edges: the list of edges from which to build the nulti-path
     """
     def shuffle(x): x = list(x); random.shuffle(x); return x
     self = Multipath()
@@ -123,42 +130,20 @@ class Multipath:
       self.loop = s
     return self
 
-PolyhedronSpec = namedtuple('PolyhedronSpec','name K labels coefs edges connect_centre_to',defaults=(None,))
-RegularPolyhedra = {
-  4:PolyhedronSpec(
-    name='tetrahedron',
-    K=3,
-    labels=('a',),
-    coefs=1.,
-    edges=(('a','a',1),),
-    connect_centre_to='a',
-  ),
-  6:PolyhedronSpec(
-    name='hexahedron',
-    K=4,
-    labels=('a','b'),
-    coefs=array((1.,2.))[:,None],
-    edges=(('a','b',0),('a','a',1),('b','b',1)),
-  ),
-  8:PolyhedronSpec(
-    name='octahedron',
-    K=3,
-    labels=('a','b'),
-    coefs=array((1.,-.25))[:,None],
-    edges=(('a','a',1),('b','b',1),('b','a',1),('b','a',-1)),
-  ),
-  12:PolyhedronSpec(
-    name='dodecahedron',
-    K=5,
-    labels=('a','b','b_','a_'),
-    coefs=array((1.,2.,-3.5,-5.))[:,None],
-    edges=(('a','b',0),('a_','b_',0),('a','a',1),('a_','a_',1),('b','b_',3),('b_','b',3)),
-  ),
-  20:PolyhedronSpec(
-    name='icosahedron',
-    K=3,
-    labels=('a','b','b_','a_'),
-    coefs=array((1.,4.,-.25,-1.))[:,None],
-    edges=(('b_','a_',0),('b_','a',2),('b_','b_',1),('a_','b',2),('a_','a',2),('a','b',0),('a','a_',2),('a','b_',2),('b','a_',2),('b','b',1)),
-  ),
-}
+class PolyhedronSpec:
+  r"""
+Instances of this class are polyhedron specifications. For each :math:`k{\in}0{:}K{-}1`:
+
+* A label :math:`a` with coefficient :math:`z` creates a node at :math:`z\exp{i\frac{2\pi k}{K}}`
+* An instruction :math:`(a,b,n)` creates an edge from node :math:`z_a\exp{i\frac{2\pi k}{K}}` to node :math:`z_b\exp{i\frac{2\pi(k{+}n)}{K}}`, where :math:`z_a` (resp. :math:`z_b`) is the coefficient of label :math:`a` (resp. :math:`b`).
+
+:param name: name of the polyhedron
+:param K: rotational invariance of angle :math:`\frac{2\pi}{K}`
+:param labels: sequence of distinct labels
+:param coefs: positions of labels
+:param edges: instructions to create edges
+:param connect_centre_to: instruction to create edge to centre
+  """
+
+  def __init__(self,name:str,K:int,labels:Iterable[str],coefs:Iterable[complex|float|int],edges:Iterable[Tuple[str,str,int]],connect_centre_to:Optional[str]=None):
+    self.name,self.K,self.labels,self.coefs,self.edges,self.connect_centre_to = name,K,labels,coefs,edges,connect_centre_to

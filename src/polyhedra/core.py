@@ -11,10 +11,10 @@ from typing import Any, Union, Callable, Iterable, Generator, Mapping, Tuple, Li
 from collections import defaultdict
 from itertools import islice
 from numpy import linalg, array, hstack, prod, sign, exp, arange, zeros, pi
-from .util import colouring, Multipath, PolyhedronSpec, RegularPolyhedra
+from .util import colouring, Multipath, PolyhedronSpec
 import networkx, mip
 
-__all__ = 'draw', 'min_edge_colouring', 'min_path_cover', 'min_thread_colouring', 'polyhedron', 'PolyhedronSpec', 'RegularPolyhedra', 'Multipath'
+__all__ = 'draw', 'min_edge_colouring', 'min_path_cover', 'min_thread_colouring', 'polyhedron', 'RegularPolyhedra', 'Multipath'
 
 def draw(G:networkx.Graph,E_COLOURS:Optional[Mapping[int,str]]=None,N_COLOURS:Optional[Mapping[int,str]]=None,TITLE:str='{name}',**ka):
   r"""
@@ -151,6 +151,44 @@ Colours the paths of an undirected graph, so that no two intersecting paths have
   G.graph['title'] = 'min-threading[{name}]'
   return G
 
+RegularPolyhedra = {
+  4:PolyhedronSpec(
+    name='tetrahedron',
+    K=3,
+    labels=('a',),
+    coefs=1.,
+    edges=(('a','a',1),),
+    connect_centre_to='a',
+  ),
+  6:PolyhedronSpec(
+    name='hexahedron',
+    K=4,
+    labels=('a','b'),
+    coefs=array((1.,2.))[:,None],
+    edges=(('a','b',0),('a','a',1),('b','b',1)),
+  ),
+  8:PolyhedronSpec(
+    name='octahedron',
+    K=3,
+    labels=('a','b'),
+    coefs=array((1.,-.25))[:,None],
+    edges=(('a','a',1),('b','b',1),('b','a',1),('b','a',-1)),
+  ),
+  12:PolyhedronSpec(
+    name='dodecahedron',
+    K=5,
+    labels=('a','b','b_','a_'),
+    coefs=array((1.,2.,-3.5,-5.))[:,None],
+    edges=(('a','b',0),('a_','b_',0),('a','a',1),('a_','a_',1),('b','b_',3),('b_','b',3)),
+  ),
+  20:PolyhedronSpec(
+    name='icosahedron',
+    K=3,
+    labels=('a','b','b_','a_'),
+    coefs=array((1.,4.,-.25,-1.))[:,None],
+    edges=(('b_','a_',0),('b_','a',2),('b_','b_',1),('a_','b',2),('a_','a',2),('a','b',0),('a','a_',2),('a','b_',2),('b','a_',2),('b','b',1)),
+  ),
+}
 def polyhedron(spec:PolyhedronSpec|int,**ka):
   if isinstance(spec,int): spec = RegularPolyhedra[spec]
   G = networkx.Graph(name=spec.name,**ka)
