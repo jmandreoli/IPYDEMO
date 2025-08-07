@@ -44,7 +44,7 @@ The cache specification *cache* is either :const:`None`, in which case no cachin
 :param init_y: initial simulation state
 :param period: period of ODE resolution
 :param cache: cache specification
-:param ka: dictionary of arguments passed to the ODE solver
+:param spec: dictionary of arguments passed to the ODE solver
   """
 #==================================================================================================
   Exception = type('ODEException',(RuntimeError,),{})
@@ -63,7 +63,7 @@ The cache specification *cache* is either :const:`None`, in which case no cachin
   cache: ndarray
   r"""The cache itself (the time axis is the last axis)"""
 
-  def __init__(self,period:Union[float,Iterable[float],Callable[[],float]]=None,cache:Tuple[int,float]=None,init_t:float=0.,init_y:ndarray=None,**spec):
+  def __init__(self,period:Union[float,Iterable[float],Callable[[],Iterable[float]]],cache:Tuple[int,float]|None=None,init_t:float=0.,init_y:ndarray=None,**spec):
     if callable(period): period_ = period
     elif isinstance(period,float): assert period>0; period_ = partial(repeat,period)
     else: assert all((isinstance(x,float) and x>0) for x in islice(period,10)); period_ = partial(iter,period)
@@ -143,7 +143,9 @@ Returns a tuple comprising an instance of class :class:`ODEEnvironment` and vari
 * The displayers are given by *displayers*; if its last element is a dictionary, it is replaced by the default displayer with that dictionary as keyword arguments, otherwise the default displayer is appended
     """
     init_y = self.makestate(**init_y) if isinstance(init_y,dict) else self.makestate(*init_y)
-    env = self.factory(init_y=init_y,**dict(dict(fun=self.fun,jac=self.jac,**self.launch_defaults),**ka))
+    ka = self.launch_defaults|ka; ka |= {'fun':self.fun}
+    if self.jac is not None: ka |= {'jac':self.jac}
+    env = self.factory(init_y=init_y,**ka)
     for h in hooks: env = h(env)
     displayers = list(displayers)
     if displayers and isinstance(displayers[-1],dict): displayers[-1] = partial(self.displayer,**displayers[-1])
