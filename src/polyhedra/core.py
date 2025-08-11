@@ -46,6 +46,7 @@ Draws multiple views of a graph. The views differ only by the colouring of nodes
                   **(dict(with_labels=False,node_size=20,width=3)|ka))
     ax.set_title(title,size='x-small')
   fig.suptitle(G.graph.get('title',TITLE).format(**G.graph),size='small')
+  return fig
 
 def colouring(N:Sequence[int],R:Sequence[Sequence[int]],*init:Sequence[Tuple[int,int]])->Generator[Tuple[int,Mapping[int,int]]]:
   r"""

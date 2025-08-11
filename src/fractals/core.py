@@ -10,10 +10,9 @@ import logging; logger = logging.getLogger(__name__)
 from typing import Any, Union, Callable, Iterable, Mapping, Tuple
 
 from itertools import count
-from functools import cached_property
 from collections import namedtuple
 from numpy import ndarray, sqrt, zeros, abs, nan, isnan, linspace
-from .util import Selection
+from .util import FractalBrowser
 
 __all__ = 'Fractal', 'MultiZoomFractal', 'FractalBrowser',
 
@@ -115,47 +114,23 @@ Adds the rectangle defined by *bounds* (by default the initial recommended recta
     Ny = int(sqrt(resolution*r)); Nx = int(resolution/Ny) # Ny/Nx~r and Nx.Ny~resolution
     return linspace(xmin,xmax,Nx,dtype=complex)[None,:]+1.j*linspace(ymin,ymax,Ny,dtype=complex)[:,None]
 
-#==================================================================================================
-class FractalBrowser:
-  r"""
-:param content: the fractal to browse
-
-An instance of this class is a fractal browser, which allows zooming at controlled resolution.
-  """
-#==================================================================================================
-
-  player:Any
-  r"""An object managing the user control (selected automatically based on the :mod:`matplotlib` backend, but can be changed)"""
-
-  def __init__(self,content:MultiZoomFractal,**ka):
-    def displayer(fig,select):
-      from matplotlib.patches import Rectangle
-      ax = fig.add_axes((0,0,1,1),xticks=(),yticks=(),aspect='equal',navigate=False)
-      bounds,stack,push = content.ibounds,content.stack,content.push
-      img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,extent=(*bounds[0],*bounds[1]),origin='lower',cmap='jet',interpolation='bilinear')
-      rect = ax.add_patch(Rectangle((0,0),width=0,height=0,alpha=.2,color='k',visible=False,lw=3,zorder=5))
-      self.selection = Selection(ax,select,alpha=.4,zorder=10)
-      level = entry = None
-      def disp(i,new=None):
-        nonlocal level,entry
-        if i==level: a = next(entry.seq)
+  def displayer(self,ax):
+    from matplotlib.patches import Rectangle
+    bounds,stack,push = self.ibounds,self.stack,self.push
+    img = ax.imshow(zeros((1,1),float),vmin=0.,vmax=1.,extent=(*bounds[0],*bounds[1]),origin='lower',cmap='jet',interpolation='bilinear')
+    rect = ax.add_patch(Rectangle((0,0),width=0,height=0,alpha=.2,color='k',visible=False,lw=3,zorder=5))
+    level = entry = None
+    def disp(i:int,new=None):
+      nonlocal level,entry
+      if i==level: a = next(entry.seq)
+      else:
+        level,entry = i,(stack[i] if new is None else push(*new,i))
+        img.set_extent((*entry.bounds[0],*entry.bounds[1]))
+        if i == len(stack)-1: rect.set(visible=False)
         else:
-          level,entry = i,(stack[i] if new is None else push(*new,i))
-          img.set_extent((*entry.bounds[0],*entry.bounds[1]))
-          if i == len(stack)-1: rect.set(visible=False)
-          else:
-            (xmin,xmax),(ymin,ymax) = stack[i+1].bounds
-            rect.set(bounds=(xmin,ymin,xmax-xmin,ymax-ymin),visible=True)
-          a = entry.status[1]
-        img.set_array(a)
-        return entry.status[0]
-      return disp
-    self.player = self.player_factory(displayer,**ka)
-    try: self._repr_mimebundle_ = self.player._repr_mimebundle_
-    except: pass
-
-  @cached_property
-  def player_factory(self):
-    from matplotlib import get_backend
-    from .util import widget_player,mpl_player
-    return widget_player if 'ipympl' in get_backend() else mpl_player
+          (xmin,xmax),(ymin,ymax) = stack[i+1].bounds
+          rect.set(bounds=(xmin,ymin,xmax-xmin,ymax-ymin),visible=True)
+        a = entry.status[1]
+      img.set_array(a)
+      return entry.status[0]
+    return disp

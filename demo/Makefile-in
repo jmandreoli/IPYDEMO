@@ -1,7 +1,11 @@
 PYTHON :=
-TARGET := fractals.out odesimu.out
+TARGET := fractals.out odesimu.out polyhedra.out
 
 all: ${TARGET}
 
 %.out: %.py
-	@export PYTHONPATH=../src ; ${PYTHON} make.py $(patsubst %.py,%,$<) 2
+	@echo Generating $@ ...
+	@${PYTHON} -Wignore make.py $(patsubst %.py,%,$<)
+
+clean:
+	@rm -f ${TARGET}

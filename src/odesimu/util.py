@@ -7,12 +7,47 @@
 
 from __future__ import annotations
 import logging; logger = logging.getLogger(__name__)
+from typing import Iterable, Callable
 
-from numpy import ndarray, array, zeros, linspace, hstack, exp, inf, digitize, amax, iterable, isclose
+from numpy import ndarray, array, arange, zeros, linspace, concatenate, hstack, exp, inf, digitize, amax, iterable
 from numpy.random import uniform
 from functools import wraps, partial
 from itertools import count
-from .core import ODEEnvironment
+
+#==================================================================================================
+class Cache:
+  r"""
+An instance of this class caches a sequence of states of a :class:`simpy.Environment` instance. It is assumed that calls to :meth:`update` have always increasing arguments, except immediately after a call to :meth:`reset`.
+  """
+#==================================================================================================
+
+  update: Callable[[float],None]
+  reset: Callable[[],None]
+  states: Callable[[],ndarray]
+
+  def __init__(self,env,spec):
+    if spec is None:
+      reset = update = (lambda *a: None)
+      states = (lambda: env.init_y[:,None])
+    else:
+      length,period = spec
+      contents = last = None
+      def reset():
+        nonlocal contents,last
+        contents,last = env.init_y[:,None],0
+      def update(t_f):
+        nonlocal contents,last
+        n = int((t_f-env.init_t)/period)
+        if n>last:
+          x = env.statef(env.init_t+arange(n,last,-1)*period)
+          contents = concatenate((x,contents[:,:length]),axis=-1)
+          last = n
+      def states():
+        n = last-int((env.now-env.init_t)/period)
+        return contents[:,n:n+length]
+    self.reset = reset
+    self.update = update
+    self.states = states
 
 #==================================================================================================
 def buffered(T:int=None,N:int=None,page:int=0):
@@ -99,7 +134,7 @@ Initially, the function is everywhere constant. Whenever a new change point is i
     self.changepoint = zeros((N,),dtype=float)
     self.right = right
 
-  def reset(self,t:float,v:iterable):
+  def reset(self,t:float,v:Iterable):
     r"""
 (Re)initialises this function with a single change point at time *t* with value *v*.
     """
@@ -111,7 +146,7 @@ Initially, the function is everywhere constant. Whenever a new change point is i
     self.value[-1] = v  # only -1 needs to be initialised
     return self
 
-  def update(self,t:float,v:iterable):
+  def update(self,t:float,v:Iterable):
     r"""
 Sets a new change point at time *t* with value *v*.
     """
@@ -211,34 +246,9 @@ An instance of this class defines the control as a piecewise constant function. 
   def __call__(self,t): return self.action(super().__call__(t))
 
 #==================================================================================================
-def period_hook(control:Controller,env:ODEEnvironment):
-  r"""
-Modifies the simulation period of the environment *env* so that it at each beginning of period, the controller *control* is reset (first period) or updated (subsequent periods).
-  """
-#==================================================================================================
-  def period(P=env.period):
-    control.reset(env.now,env.statef(env.now))
-    for p in P():
-      yield p
-      if control.tmax>env.now: # should not be needed but ode solver sometimes look ahead
-        logger.warning('re-adjusting tmax %s -> %s',control.tmax,env.now)
-        control.tmax = env.now
-      control.update(env.now,env.statef(env.now))
-  env.period = period
-  return env
-
-#==================================================================================================
-def target_displayer(pos,**ka):
-  r"""
-A helper function to create a displayer of a time only function *pos* returning pairs of scalar coordinates.
-  """
-#==================================================================================================
-  return lambda env,ax: lambda a=ax.scatter((),(),**ka): a.set_offsets(pos(env.now))
-
-#==================================================================================================
 class PIDControlledMixin:
   r"""
-A helper mixin class which can be added as *first* mixin in :class:`.core.System` sub-classes.
+A helper mixin class which can be added as *first* mixin in a :class:`.core.System` sub-class.
   """
 #==================================================================================================
   @staticmethod
@@ -250,13 +260,28 @@ A helper mixin class which can be added as *first* mixin in :class:`.core.System
     r"""Returns the gap between the observation *o* of the target and the *state* of the system. This implementation assumes the observation and state space are identical, and returns the difference between the observation and the state."""
     return o-state
 
-  display_defaults = dict(c='g',marker='^',label='target')
-
   def __init__(self,control_kw,target,*a,**ka):
     blur = control_kw.pop('blur',None)
-    otarget = target if blur is None else blurred(level=blur)(target) if isinstance(blur,float) else blurred(**blur)(target)
-    self.target_displayer = target_displayer((lambda t: self.pos(target(t))),**self.display_defaults)
-    super().__init__(PIDController(observe=(lambda t,state: self.gap(otarget(t),state)),**control_kw),*a,**ka)
+    blur_ = (lambda target:target) if blur is None else blurred(level=blur) if isinstance(blur,float) else blurred(**blur)
+    obs = blur_(target)
+    self.target = target
+    super().__init__(PIDController(observe=(lambda t,state: self.gap(obs(t),state)),**control_kw),*a,**ka)
 
-  def launch(self,*displayers,**ka):
-    return super().launch(self.target_displayer,*displayers,hooks=(partial(period_hook,self.control),),**ka)
+  def launch(self,**ka):
+    env = super().launch(**ka)
+    # hook the period generator so it notifies the controller after each period
+    def period(P=env.period,control=self.control):
+      control.reset(env.now,env.statef(env.now))
+      for p in P():
+        yield p
+        if control.tmax>env.now: # should not be needed but ode solver sometimes look ahead
+          logger.warning('re-adjusting tmax %s -> %s',control.tmax,env.now)
+          control.tmax = env.now
+        control.update(env.now,env.statef(env.now))
+    env.period = period
+    # add a displayer for the target
+    def displayer(ax,c='g',marker='^',**ka):
+      a = ax.scatter((),(),c=c,marker=marker,label='target',**ka)
+      return lambda: a.set_offsets(self.pos(self.target(env.now)))
+    env.displayers['target'] = displayer
+    return env

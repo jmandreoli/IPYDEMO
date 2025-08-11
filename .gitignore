@@ -1,9 +1,3 @@
-*~
-.ipynb_checkpoints
-.jupyter
-.mypy_cache
-.idea
-__pycache__
+.pythonpath
 Makefile
 doc.html
-
