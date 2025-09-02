@@ -21,6 +21,7 @@ This is achieved by the following program.
 Typical output:
 
 .. image:: ../demo/fractals.gif
+   :scale: 50
 
 Available types and functions
 -----------------------------

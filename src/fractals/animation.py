@@ -139,4 +139,4 @@ This class refines :class:`player_base` for backends which do not support :mod:`
     toolbar.canvas.mpl_connect('button_press_event',on_button_press)
     super().__init__(display,**ka)
 
-ControlledAnimation = IPYControlledAnimation if get_backend()=='widget' else MPLControlledAnimation
+def ControlledAnimation(*a,**ka): return IPYControlledAnimation(*a,**ka) if get_backend()=='widget' else MPLControlledAnimation(*a,**ka)

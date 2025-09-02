@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 import logging; logger = logging.getLogger(__name__)
-from typing import Iterable, Callable
+from typing import Iterable, Callable, Tuple
 
 from numpy import ndarray, array, arange, zeros, linspace, concatenate, hstack, exp, inf, digitize, amax, iterable
 from numpy.random import uniform
@@ -17,7 +17,10 @@ from itertools import count
 #==================================================================================================
 class Cache:
   r"""
-An instance of this class caches a sequence of states of a :class:`simpy.Environment` instance. It is assumed that calls to :meth:`update` have always increasing arguments, except immediately after a call to :meth:`reset`.
+:param env: an environment
+:param spec: a specification
+
+The specification *spec* is either :const:`None`, in which case no caching is performed, or a pair of the cache length and the cache period (independent of the simulation period generator). The cache contains the states sampled at a sequence of decreasing multiples of the cache period. The size of the sequence is chosen so that at any time in the current simulation span, the sequence clipped above at that time has length at least equal to the cache length, unless the initial time is reached before. It is assumed that calls to :meth:`update` have always increasing arguments, except immediately after a call to :meth:`reset`.
   """
 #==================================================================================================
 
@@ -25,7 +28,7 @@ An instance of this class caches a sequence of states of a :class:`simpy.Environ
   reset: Callable[[],None]
   states: Callable[[],ndarray]
 
-  def __init__(self,env,spec):
+  def __init__(self,env,spec:Tuple[int,float]|None):
     if spec is None:
       reset = update = (lambda *a: None)
       states = (lambda: env.init_y[:,None])
@@ -121,7 +124,7 @@ Instances of this class implement piecewise constant functions which are dynamic
 Initially, the function is everywhere constant. Whenever a new change point is inserted, it must be greater than all the previous change points and all the arguments at which the function has already been evaluated, otherwise, an exception is raised. When the buffer is exceeded, old change points are forgotten and any attempt to evaluate the function before or at those old change points raises an exception.
   """
 #==================================================================================================
-  class Exception(Exception): pass
+  Exception = type('DPiecewiseException',(Exception,),{})
   right:bool
   tmax:float
   r"""largest value at which the function has been evaluated"""
@@ -200,11 +203,11 @@ Records an observation *o* at time *t*. This implementation raises an error, so 
 #==================================================================================================
 class PIDController (DPiecewise,Controller):
   r"""
-Objects of this class implement rudimentary PID controllers.
+:param gP: proportional gain (required)
+:param gI: integration gain
+:param gD: derivative gain
 
-:param gP,gI,gD: proportional, integration, derivative gains
-
-An instance of this class defines the control as a piecewise constant function. A new change point is created by invoking method :meth:`update` passing it a time *t* and state *s* of the system at that time. The associated control is based on the value of function *observe* at *s*, using the PID scheme. Change points must be inserted in chronological order.
+Implements a rudimentary PID controller. An instance of this class defines the control as a piecewise constant function. A new change point is created by invoking method :meth:`update` passing it a time *t* and state *s* of the system at that time. The associated control is based on the value of function *observe* at *s*, using the PID scheme. Change points must be inserted in chronological order.
   """
 #==================================================================================================
   last = None

@@ -2,16 +2,17 @@
 # Contributors:         Jean-Marc Andreoli
 # Language:             python
 # Purpose:              Illustration of the odesimu subpackage
-from make import RUN; RUN(__name__,__file__) # trick for documentation
+from make import RUN; RUN(__name__,__file__) # doc gen trick
 #--------------------------------------------------------------------------------------------------
 
-from collections import namedtuple
-from enum import Enum
 from numpy import array,square,sqrt,cos,sin,arccos,arcsin,degrees,radians,pi,isclose
 from myutil.simpy import SimpySimulation
 from IPYDEMO.odesimu import System
-Trajectory = namedtuple('Trajectory','periodicity alpha T name display')
+from collections import namedtuple
+from enum import Enum
+Trajectory = namedtuple('Trajectory','periodicity alpha T name displayer')
 Periodicity = Enum('Periodicity','Aperiodic Periodic IncrementalPeriodic')
+Analytics = namedtuple('Analytics','E trajectory')
 
 class Pendulum (System):
 
@@ -30,12 +31,12 @@ class Pendulum (System):
     return radians((theta, dtheta))
 
   def displayer(self,env,ax,refsize=None): # required
-    trajectory = self.trajectory(env.init_y)
-    ax.set_title(f'trajectory:{trajectory.name}',fontsize='x-small')
+    Q = self.analytics(env.init_y)
+    ax.set_title(f'trajectory:{Q.trajectory.name}',fontsize='x-small')
     L = 1.05*self.L
     ax.set(xlim=(-L,L),ylim=(-L,L))
     ax.scatter((0.,),(0.,),c='k',marker='o',s=refsize)
-    trajectory.display(ax)
+    Q.trajectory.displayer(ax)
     a_pole, = ax.plot((),(),'k')
     a_bob = ax.scatter((),(),s=refsize,marker='o',c='r')
     a_tail, = ax.plot((),(),'y')
@@ -52,13 +53,10 @@ class Pendulum (System):
 
   launch_defaults = {'period':10.,'cache_spec':(10,.05),'max_step':.05}
 
-  def analytics(self,init_y):
-    θ,θʹ = init_y
-    return .5*square(θʹ)-self.a*cos(θ)
-
-  def trajectory(self,init_y):
+  def analytics(self,ini): # optional
     from scipy.integrate import quad
-    E = self.analytics(init_y)
+    θ,θʹ = ini
+    E = .5*square(θʹ)-self.a*cos(θ)
     c = -E/self.a
     if isclose(c,-1):
       periodicity = Periodicity.Aperiodic; name = 'aperiodic'; T = None; α = pi
@@ -68,17 +66,17 @@ class Pendulum (System):
       T = pi/sqrt(2) if isclose(α,0.) else quad((lambda θ,c=c: 1/sqrt(cos(θ)-c)),0,α)[0]
       T *= sqrt(2/self.a)
       name = f'{name}: {T:.2f}'
-    name = f'CircularArc($R={self.L:.2f},\\alpha={degrees(α):.2f}$) {name}'
+    name = f'CircularArc($R={self.L:.2f},\\alpha={degrees(α):.2f}^\\circ$) {name}'
     def displayer(ax):
       from matplotlib.patches import Arc
       ax.set_title(f'Trajectory:{name}',fontsize='x-small')
       ax.scatter(*zip(*map(self.cartesian,((-α,0),(α,0)))),marker='+',c='k')
       ax.add_patch(Arc((0,0),2*self.L,2*self.L,angle=-90,theta1=-degrees(α),theta2=degrees(α),color='k',ls='dashed'))
-    return Trajectory(periodicity,α,T,name,displayer)
+    return Analytics(E,Trajectory(periodicity,α,T,name,displayer))
 
 syst = Pendulum(L=2.,G=9.81)
 R = SimpySimulation(
   syst.launch(init_y={'theta':90.,'dtheta':120.},period=20.),
-  track=[6.],frame_per_stu=25,fig_kw={'figsize':(7,7)},save_count=150
+  track_spec=[6.],frame_per_stu=25,fig_kw={'figsize':(7,7)},save_count=150
 )
 RUN.save(R.player)

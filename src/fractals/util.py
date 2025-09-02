@@ -11,7 +11,6 @@ import traceback
 from typing import Any, Union, Callable, Iterable, Mapping, Sequence, Tuple
 import logging; logger = logging.getLogger(__name__)
 from functools import cached_property
-from matplotlib.backend_bases import MouseButton
 
 #==================================================================================================
 class FractalBrowser:
@@ -51,7 +50,7 @@ class Selection:
     self.callback = callback
 
   def start(self,ev):
-    if ev.inaxes is self.rec.axes and ev.button == MouseButton.LEFT and self.bbox is None:
+    if ev.inaxes is self.rec.axes and ev.button == ev.button.LEFT and self.bbox is None:
       p = ev.xdata, ev.ydata
       self.bbox = [p,p]
       self.rec.set(xy=p,width=0,height=0,visible=True)
@@ -65,7 +64,7 @@ class Selection:
       self.canvas.draw_idle()
 
   def stop(self,ev):
-    if ev.inaxes is self.rec.axes and ev.button == MouseButton.LEFT and self.bbox is not None:
+    if ev.inaxes is self.rec.axes and ev.button == ev.button.LEFT and self.bbox is not None:
       p,p1 = self.bbox
       self.bbox = None
       self.rec.set(visible=False)

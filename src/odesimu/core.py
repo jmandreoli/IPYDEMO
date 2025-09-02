@@ -21,7 +21,7 @@ __all__ = 'ODEEnvironment', 'System',
 #==================================================================================================
 class ODEEnvironment (RobustEnvironment):
   r"""
-An instance of this class represents an abstract dynamical systems (in physics, electronics, hydraulics etc.) governed by an ordinary differential equation (ODE):
+An instance of this class represents an abstract dynamical system (in physics, electronics, hydraulics etc.) governed by an ordinary differential equation (ODE):
 
 .. math::
 
@@ -39,12 +39,10 @@ The initial simulation time and state are given by *init_t* and *init_y*, respec
 
 Various specifications of the ODE are passed through *spec* to function :func:`scipy.integrate.solve_ivp`. At least function :math:`F` must be passed as keyword argument ``fun``.
 
-The cache specification *cache* is either :const:`None`, in which case no caching is performed, or a pair of the cache length and the cache period, independent of the simulation period generator. The cache contains the states sampled at a sequence of decreasing multiples of the cache period. The size of the sequence is chosen so that at any time in the current simulation span, the sequence clipped above at that time has length at least equal to the cache length, unless the initial time is reached before.
-
 :param init_t: initial simulation time
 :param init_y: initial simulation state
 :param period: period of ODE resolution
-:param cache_spec: cache specification
+:param cache_spec: cache specification passed to class :class:`Cache`
 :param spec: dictionary of arguments passed to the ODE solver
   """
 #==================================================================================================
@@ -56,7 +54,7 @@ The cache specification *cache* is either :const:`None`, in which case no cachin
   state: ndarray
   r"""State at the current instant of the simulation"""
   cache: Cache
-  r"""Cache of the state"""
+  r"""State cache"""
 
   def __init__(self,period:Union[float,Iterable[float],Callable[[],Iterable[float]]],cache_spec:Tuple[int,float]|None=None,init_t:float=0.,init_y:ndarray=None,**spec):
     if callable(period): period_ = period

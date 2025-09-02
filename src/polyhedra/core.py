@@ -36,14 +36,14 @@ Draws multiple views of a graph. The views differ only by the colouring of nodes
   views = G.graph.get('views',{None:f'Graph[Vertices:{G.order()}, Edges:{G.size()}, Faces:{G.size()-G.order()+2}]'})
   rows,cols = map((lambda n: n+1),divmod(len(views)-1,4))
   if rows>1: cols = 4
-  fig,axes = subplots(rows,cols,squeeze=False,subplot_kw=dict(aspect='equal',xticks=(),yticks=(),frame_on=False),figsize=(4*cols,4*rows))
+  fig,axes = subplots(rows,cols,squeeze=False,subplot_kw={'aspect':'equal','xticks':(),'yticks':(),'frame_on':False},figsize=(4*cols,4*rows))
   for (view,title),ax in zip(views.items(),(ax for axes_ in axes for ax in axes_)):
     networkx.draw(G,
                   pos=dict([(n,r['position']) for n,r in G.nodes.items()]),
                   node_color=[n_colours.get(r.get('colour',{}).get(view),'black') for r in G.nodes.values()],
                   edge_color=[e_colours.get(r.get('colour',{}).get(view),'gray') for r in G.edges.values()],
                   ax=ax,
-                  **(dict(with_labels=False,node_size=20,width=3)|ka))
+                  **({'with_labels':False,'node_size':20,'width':3}|ka))
     ax.set_title(title,size='x-small')
   fig.suptitle(G.graph.get('title',TITLE).format(**G.graph),size='small')
   return fig
@@ -151,7 +151,7 @@ This is solved by MILP. If :math:`v` is a vertice and :math:`e` an edge, let :ma
   assert not networkx.is_directed(G)
   M = mip.Model(); sols = []; O = None
   while True:
-    M.clear(); e_vars = {}; n_vars = defaultdict(list); objc = []
+    M.clear(); e_vars = {}; n_vars = defaultdict(list); objc_l = []
     # create an integer variable in {-1,+1} for each edge:
     for e in G.edges:
       v = M.add_var(var_type=mip.BINARY); e_vars[e] = v2 = M.add_var(var_type=mip.INTEGER,lb=-1,ub=1)
@@ -163,8 +163,8 @@ This is solved by MILP. If :math:`v` is a vertice and :math:`e` an edge, let :ma
     for n,l in n_vars.items():
       v = M.add_var(var_type=mip.INTEGER,lb=0,ub=len(l))
       # constrain it to be a bound on the degree flow
-      objc.append(v); t = mip.xsum(l); M += t<=v; M += -t<=v
-    objc = mip.xsum(objc)
+      objc_l.append(v); t = mip.xsum(l); M += t<=v; M += -t<=v
+    objc = mip.xsum(objc_l)
     # objective: sum of bounds on the degree flow at each vertice
     if O is None: M.objective = objc
     else: M += objc <= O
