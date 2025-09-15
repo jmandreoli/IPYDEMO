@@ -6,51 +6,13 @@
 #
 
 from __future__ import annotations
-import logging; logger = logging.getLogger(__name__)
+import logging;logger = logging.getLogger(__name__)
 from typing import Iterable, Callable, Tuple
 
 from numpy import ndarray, array, arange, zeros, linspace, concatenate, hstack, exp, inf, digitize, amax, iterable
 from numpy.random import uniform
 from functools import wraps, partial
 from itertools import count
-
-#==================================================================================================
-class Cache:
-  r"""
-:param env: an environment
-:param spec: a specification
-
-The specification *spec* is either :const:`None`, in which case no caching is performed, or a pair of the cache length and the cache period (independent of the simulation period generator). The cache contains the states sampled at a sequence of decreasing multiples of the cache period. The size of the sequence is chosen so that at any time in the current simulation span, the sequence clipped above at that time has length at least equal to the cache length, unless the initial time is reached before. It is assumed that calls to :meth:`update` have always increasing arguments, except immediately after a call to :meth:`reset`.
-  """
-#==================================================================================================
-
-  update: Callable[[float],None]
-  reset: Callable[[],None]
-  states: Callable[[],ndarray]
-
-  def __init__(self,env,spec:Tuple[int,float]|None):
-    if spec is None:
-      reset = update = (lambda *a: None)
-      states = (lambda: env.init_y[:,None])
-    else:
-      length,period = spec
-      contents = last = None
-      def reset():
-        nonlocal contents,last
-        contents,last = env.init_y[:,None],0
-      def update(t_f):
-        nonlocal contents,last
-        n = int((t_f-env.init_t)/period)
-        if n>last:
-          x = env.statef(env.init_t+arange(n,last,-1)*period)
-          contents = concatenate((x,contents[:,:length]),axis=-1)
-          last = n
-      def states():
-        n = last-int((env.now-env.init_t)/period)
-        return contents[:,n:n+length]
-    self.reset = reset
-    self.update = update
-    self.states = states
 
 #==================================================================================================
 def buffered(T:int=None,N:int=None,page:int=0):
@@ -251,7 +213,7 @@ Implements a rudimentary PID controller. An instance of this class defines the c
 #==================================================================================================
 class PIDControlledMixin:
   r"""
-A helper mixin class which can be added as *first* mixin in a :class:`.core.System` sub-class.
+A helper mixin class which can be added as *first* mixin in a :class:`.core.ODESystem` sub-class. It alters method :meth:`simulation` (to display the target of the controller) as well as method :meth:`trajectory` (so the controller is updated after each period of the trajectory).
   """
 #==================================================================================================
   @staticmethod
@@ -270,21 +232,24 @@ A helper mixin class which can be added as *first* mixin in a :class:`.core.Syst
     self.target = target
     super().__init__(PIDController(observe=(lambda t,state: self.gap(obs(t),state)),**control_kw),*a,**ka)
 
-  def launch(self,**ka):
-    env = super().launch(**ka)
-    # hook the period generator so it notifies the controller after each period
-    def period(P=env.period,control=self.control):
-      control.reset(env.now,env.statef(env.now))
-      for p in P():
-        yield p
-        if control.tmax>env.now: # should not be needed but ode solver sometimes look ahead
-          logger.warning('re-adjusting tmax %s -> %s',control.tmax,env.now)
-          control.tmax = env.now
-        control.update(env.now,env.statef(env.now))
-    env.period = period
-    # add a displayer for the target
+  def simulation(self,**ka):
+    # adds a displayer for the target
     def displayer(ax,c='g',marker='^',**ka):
       a = ax.scatter((),(),c=c,marker=marker,label='target',**ka)
-      return lambda: a.set_offsets(self.pos(self.target(env.now)))
-    env.displayers['target'] = displayer
-    return env
+      return lambda t: a.set_offsets(self.pos(self.target(t)))
+    return super().simulation(**ka).add_displayer(target=displayer)
+
+  def trajectory(self,**ka):
+    # updates the controller at the end of each period of the trajectory
+    trajectory_ = super().trajectory(**ka)
+    def period(P=trajectory_.period,control=self.control):
+      control.reset(trajectory_.init_t,trajectory_.init_y)
+      for p in P():
+        yield p
+        t = trajectory_.stop
+        if control.tmax>t: # should not be needed but ode solver sometimes looks ahead
+          logger.warning('re-adjusting tmax %s -> %s',control.tmax,t)
+          control.tmax = t
+        control.update(t,trajectory_.state(t))
+    trajectory_.period = period
+    return trajectory_
