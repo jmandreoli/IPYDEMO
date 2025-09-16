@@ -14,8 +14,6 @@ from itertools import repeat, islice
 from inspect import signature
 from scipy.integrate import solve_ivp
 from numpy import ndarray,array,arange,concatenate
-from myutil import ResettableSimpyEnvironment
-from myutil.animation import PanesDisplayer
 
 __all__ = 'ODESystem',
 
@@ -110,19 +108,22 @@ Produces one trajectory of the ODE, as an :class:`Trajectory` instance. The traj
     r"""Returns a default displayer function which, on invocation, displays the current state of the *trajectory* on the board part specified by *pane*. This implementation raises an error and must be overridden in subclasses or at the instance level."""
     raise NotImplementedError()
 #--------------------------------------------------------------------------------------------------
-  def simulation(self,target=None,**ka):
+  def simulation(self,target=None,pos=None,**ka):
     r"""
-Extends a :class:`myutil.simpy.SimpySimulation` from an existing one given by *target* or a new one if *target* is :const:`None`. It adds the unrolling of the ODE resolution to the configuration of the environment, as well as the setup for the display of the solution.
+If *target* is None, it defaults to a new :class:`myutil.anim.BoardDisplayer`, to which a new :class:`ResettableSimpyEnvironment` starting at time :math:`0.` is attached as attribute :attr:`env`. Otherwise, it must be a :class:`myutil.anim.BoardDisplayer` with attribute :attr:`env`, typically initialised by another trajectory. In all cases, tne environment :attr:`env` attached to *target* is then configured with a :class:`simpy.Process` which rolls out this trajectory, and the main displayer of this trajectory state is added to *target*. More displayers can be added by sub-classes.
+
+:param target: the board displayer for this simulation
+:param pos: the position of the pane on the board
+:param ka: passed to the trajectory generator (method :meth:`trajectory`)
     """
 #--------------------------------------------------------------------------------------------------
+    from myutil.animation import BoardDisplayer
     trajectory = self.trajectory(**ka)
-    if target is None:
-      target = PanesDisplayer()
-      target.env = env = ResettableSimpyEnvironment(trajectory.init_t)
-      target.setup = lambda t: env.run(t)
-    else: assert isinstance(target,PanesDisplayer); env = target.env
-    env.add_config(lambda e: e.process(e.timeout(trajectory.duration) for _ in trajectory))
-    return target.add_displayer(main=partial(self.displayer,trajectory))
+    assert trajectory.init_t <= 0. # by convention, all simulations start at 0. so the trajectory must start at or before 0.
+    if target is None: target = BoardDisplayer().with_simpy_setup()
+    else: assert isinstance(target,BoardDisplayer)
+    target.env.add_config(lambda e: e.process(e.timeout(trajectory.duration) for _ in trajectory))
+    return target.add_displayer(main=partial(self.displayer,trajectory),pos=pos)
 
 #==================================================================================================
 class Trajectory:
