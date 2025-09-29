@@ -13,6 +13,7 @@ Welcome to IPYDEMO's documentation!
    mod_odesimu.rst
    mod_fractals.rst
    mod_polyhedra.rst
+   mod_sudoku.rst
 
 Indices and tables
 ==================

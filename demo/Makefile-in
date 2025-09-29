@@ -1,5 +1,5 @@
 PYTHON :=
-TARGET := fractals.out odesimu.out polyhedra.out
+TARGET := fractals.out odesimu.out polyhedra.out sudoku.out
 
 all: ${TARGET}
 
