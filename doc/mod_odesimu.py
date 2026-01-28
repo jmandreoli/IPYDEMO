@@ -2,8 +2,6 @@
 # Contributors:         Jean-Marc Andreoli
 # Language:             python
 # Purpose:              Illustration of the odesimu subpackage
-from make import RUN; RUN(__name__,__file__) # doc gen trick
-#--------------------------------------------------------------------------------------------------
 
 from numpy import array,square,sqrt,cos,sin,arccos,arcsin,degrees,radians,pi,isclose
 from IPYDEMO.odesimu import ODESystem
@@ -73,5 +71,5 @@ class Pendulum (ODESystem):
     return Analytics(E,α,periodicity,T,name,displayer)
 
 syst = Pendulum(L=2.,G=9.81)
-R = syst.simulation(init_y={'theta':90.,'dtheta':120.},period=20.)
-RUN.save(R.play(track_spec=[6.],frame_per_stu=25,fig_kw={'figsize':(7,7)},save_count=150))
+sim = syst.simulation(init_y={'theta':90.,'dtheta':120.},period=20.)
+RUN.record(sim.play(track_spec=[6.],frame_per_stu=25,fig_kw={'figsize':(7,7)},save_count=150))

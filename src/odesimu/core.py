@@ -15,7 +15,7 @@ from inspect import signature
 from scipy.integrate import solve_ivp
 from numpy import ndarray,array,arange,concatenate
 
-__all__ = 'ODESystem',
+__all__ = 'ODESystem', 'Trajectory'
 
 #==================================================================================================
 class ODESystem:
@@ -37,6 +37,8 @@ This constructor does not take parameters. They are usually passed in sub-class 
   r"""(required) Function :math:`F` to use in the ODE :math:`\frac{\mathbf{d}y}{\mathbf{d}t}=F(t,y)`"""
   jac:Callable[[float,ndarray],ndarray]|None = None
   r"""(optional) Jacobian of the function of the ODE"""
+  trajectory_defaults:dict[str,Any] = {}
+  r"""(optional) Default values for trajectory specifications"""
 
   def __init__(self):
     def check(f:Callable[[float,ndarray],ndarray]):
@@ -54,7 +56,7 @@ This constructor does not take parameters. They are usually passed in sub-class 
     assert self.trajectory_defaults.get('fun') is None
     assert isinstance(self.trajectory_defaults.get('jac',True),bool)
     assert len(signature(self.displayer).parameters) >= 2
-  trajectory_defaults:dict[str,Any] = {}
+
 #--------------------------------------------------------------------------------------------------
   def trajectory(self,period:float|Iterable[float]|Callable[[],Iterable[float]]|None=None,init_y=None,init_t:float|None=None,cache_spec:tuple[int,float]|None=None,fun:None=None,jac:bool|None=None,**spec):
     r"""
@@ -110,7 +112,7 @@ Produces one trajectory of the ODE, as an :class:`Trajectory` instance. The traj
 #--------------------------------------------------------------------------------------------------
   def simulation(self,target=None,pos=None,**ka):
     r"""
-If *target* is None, it defaults to a new :class:`myutil.anim.BoardDisplayer`, to which a new :class:`ResettableSimpyEnvironment` starting at time :math:`0.` is attached as attribute :attr:`env`. Otherwise, it must be a :class:`myutil.anim.BoardDisplayer` with attribute :attr:`env`, typically initialised by another trajectory. In all cases, tne environment :attr:`env` attached to *target* is then configured with a :class:`simpy.Process` which rolls out this trajectory, and the main displayer of this trajectory state is added to *target*. More displayers can be added by sub-classes.
+If *target* is None, it defaults to a new :class:`myutil.anim.BoardDisplayer`, to which a new :class:`ResettableSimpyEnvironment` starting at time :math:`0.` is attached as attribute :attr:`env`. Otherwise, it must be a :class:`myutil.anim.BoardDisplayer` with attribute :attr:`env`, typically initialised by another trajectory. In all cases, the environment :attr:`env` attached to *target* is then configured with a :class:`simpy.Process` which rolls out this trajectory, and the main displayer of this trajectory state is added to *target*. More displayers can be added by sub-classes.
 
 :param target: the board displayer for this simulation
 :param pos: the position of the pane on the board

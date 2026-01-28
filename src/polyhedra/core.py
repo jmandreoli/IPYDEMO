@@ -16,6 +16,7 @@ import networkx, mip
 
 __all__ = 'draw', 'colouring', 'min_edge_colouring', 'min_path_cover', 'min_thread_colouring'
 
+#==========================================================================
 def draw(G:networkx.Graph,E_COLOURS:Optional[Mapping[int,str]]=None,N_COLOURS:Optional[Mapping[int,str]]=None,TITLE:str='{name}',**ka):
   r"""
 Draws multiple views of a graph. The views differ only by the colouring of nodes and edges. Assumptions:
@@ -30,6 +31,7 @@ Draws multiple views of a graph. The views differ only by the colouring of nodes
 :param N_COLOURS: dict mapping node colour indices to matplotlib colour names, overriding the items in attribute `n_colours` of *G*
 :param TITLE: string format for the title of the overall figure (the format variables are the graph attribute names)
   """
+#==========================================================================
   from matplotlib.pyplot import subplots
   e_colours:Mapping[int,str] = G.graph.get('e_colours',{}) | ({} if E_COLOURS is None else dict(E_COLOURS))
   n_colours:Mapping[int,str] = G.graph.get('n_colours',{}) | ({} if N_COLOURS is None else dict(N_COLOURS))
@@ -48,6 +50,7 @@ Draws multiple views of a graph. The views differ only by the colouring of nodes
   fig.suptitle(G.graph.get('title',TITLE).format(**G.graph),size='small')
   return fig
 
+#==========================================================================
 def colouring(N:Sequence[int],R:Sequence[Sequence[int]],*init:Sequence[Tuple[int,int]])->Generator[Tuple[int,Mapping[int,int]]]:
   r"""
 Enumerates minimal solutions to a colouring problem on a set of nodes and a set of clusters (of nodes). A solution is a pair of an assignment of a colour to each node so that any two nodes in the same cluster have different colours. A minimal solution is a solution using a minimal number of colours.
@@ -71,6 +74,7 @@ This is solved by MILP.
 :param init: an initialisation of some nodes as a list of node-colour pairs
 :return: a pair of the total number of colours used and a solution
   """
+#==========================================================================
   M = mip.Model()
   sols = []
   for C in range(max(len(r) for r in R),len(N)+1):
@@ -100,6 +104,7 @@ This is solved by MILP.
         else: break # try next number of colours
       else: raise Exception('Internal error',status)
 
+#==========================================================================
 def min_edge_colouring(G:networkx.Graph,*init:Sequence[Tuple[Any,int]],nsol:int=4)->networkx.Graph:
   r"""
 Sets the node and edge colours of an undirected graph, so that no two contiguous edges have the same colour.
@@ -108,6 +113,7 @@ Sets the node and edge colours of an undirected graph, so that no two contiguous
 :param init: a list of (edge,colour) pairs which is imposed in each solution
 :param nsol: max number of solutions generated
   """
+#==========================================================================
   def orientation(mat): mat = array([u for u in mat if u is not None]); return prod([linalg.det(mat[[0,i,i+1]]) for i in range(1,len(mat)-1)])
   assert not networkx.is_directed(G)
   # list edges accounting for non directedness
@@ -129,6 +135,7 @@ Sets the node and edge colours of an undirected graph, so that no two contiguous
   G.graph['title'] = 'min-edge-colouring[{name}]'
   return G
 
+#==========================================================================
 def min_path_cover(G:networkx.Graph)->Generator[Multipath]:
   r"""
 Computes the minimum number of edge-disjoint paths needed to cover all the edges of an undirected graph.
@@ -148,6 +155,7 @@ This is solved by MILP. If :math:`v` is a vertice and :math:`e` an edge, let :ma
 :param G: an undirected graph
 :return: a pair of the number of covering paths, and a random solution
   """
+#==========================================================================
   assert not networkx.is_directed(G)
   M = mip.Model(); sols = []; O = None
   while True:
@@ -183,6 +191,7 @@ This is solved by MILP. If :math:`v` is a vertice and :math:`e` an edge, let :ma
     elif status is mip.OptimizationStatus.INFEASIBLE: return
     else: raise Exception('Internal error',status)
 
+#==========================================================================
 def min_thread_colouring(G:networkx.Graph,manual:Sequence[Multipath]=(),nsol:int=4)->networkx.Graph:
   r"""
 Colours the paths of an undirected graph, so that no two intersecting paths have the same colour.
@@ -190,6 +199,7 @@ Colours the paths of an undirected graph, so that no two intersecting paths have
 :param G: an undirected graph
 :param manual: a sequence
   """
+#==========================================================================
   def gen(r):
     if r.loop is None:
       _,col = next(colouring(range(len(r.paths)),r.inpath.values()))

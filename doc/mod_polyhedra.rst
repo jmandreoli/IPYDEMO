@@ -11,15 +11,18 @@ The following program shows some properties of the dodecahedron
 * min-edge-colouring requires 3 colours, and there are exactly 2 solution up to colour choice and permutations.
 * min-threading requires 10 threads, coloured arbitrarily in the 2 generated solutions below.
 
-.. literalinclude:: ../demo/polyhedra.py
+.. literalinclude:: mod_polyhedra.py
+   :lines: 6-
    :language: python
    :tab-width: 2
 
 Typical output:
 
-.. image:: ../demo/polyhedra_ec.png
+.. image:: _resource/mod_polyhedra.png
 
-.. image:: ../demo/polyhedra_tc.png
+.. image:: _resource/mod_polyhedra-ec.png
+
+.. image:: _resource/mod_polyhedra-tc.png
 
 Available types and functions
 -----------------------------

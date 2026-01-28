@@ -4,6 +4,8 @@ This package contains various IPython demos based on Jupyter notebooks. The purp
 
 * simulation of various dynamical systems defined by ordinary differential equations (sub-package `odesimu`)
 * multi-zoom exploration of fractals (sub-package `fractals`)
+* exploration of polyhedra (sub-package `polyhedra`)
+* exploration of Sudoku problem space (sub-package `sudoku`)
 
 ## Dependencies
 

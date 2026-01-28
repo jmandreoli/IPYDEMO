@@ -8,13 +8,14 @@ An example
 
 The following program implements a simple (random) generation and solving of a Sudoku grid:
 
-.. literalinclude:: ../demo/sudoku.py
+.. literalinclude:: mod_sudoku.py
+   :lines: 6-
    :language: python
    :tab-width: 2
 
-Typical output:
+.. topic:: Typical output
 
-.. include:: ../demo/sudoku.out
+   .. include:: _resource/mod_sudoku.out
 
 Available types and functions
 -----------------------------

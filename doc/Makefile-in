@@ -7,12 +7,29 @@ SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = .
 BUILDDIR      = _build
+# needed for _resource
+RSCMAKE       =
 
 # Put it first so that "make" without argument is like "make help".
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 .PHONY: help Makefile
+
+RSC = $(addprefix _resource/mod_,odesimu.out odesimu.gif fractals.out fractals.gif polyhedra.out sudoku.out) # to be added when mip is back...
+
+rsc: $(RSC) ;
+
+rsc-clean: ; @rm -rf $(RSC)
+
+_resource/%.out:: %.py
+	@echo Generating $@ ...
+	@export PYTHONPATH=../.pythonpath:$(PYTHONPATH); ${RSCMAKE} $< $@
+
+_resource/%.gif:: _resource/%.mp4
+	@echo Generating $@ ...
+	@ffmpeg -loglevel panic -y -i $< $@
+_resource/%.mp4:: _resource/%.out ;
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).

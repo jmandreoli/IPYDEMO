@@ -14,13 +14,14 @@ We want to explore the (most famous) fractal: Mandelbrot's set. It is the set of
 
 This is achieved by the following program.
 
-.. literalinclude:: ../demo/fractals.py
+.. literalinclude:: mod_fractals.py
+   :lines: 6-
    :language: python
    :tab-width: 2
 
 Typical output:
 
-.. image:: ../demo/fractals.gif
+.. image:: _resource/mod_fractals.gif
    :scale: 50
 
 Available types and functions

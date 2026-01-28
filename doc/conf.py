@@ -16,15 +16,15 @@
 
 import sys,pathlib
 sys.path.insert(0,str(pathlib.Path(__file__).resolve().parent.with_name('.pythonpath')))
-def setup(app):
-  from inspect import isbuiltin
-  def fixbug(app,what,name,obj,skip,options):
-    if isbuiltin(obj): return True
-  app.connect('autodoc-skip-member',fixbug)
+def fixmip(): # while module mip is KO
+  from importlib.util import module_from_spec, spec_from_loader
+  sys.modules['mip'] = mip = module_from_spec(spec_from_loader('mip',None))
+  mip.__dict__.update(Model=(lambda:None))
+fixmip()
 
 # -- Project information -----------------------------------------------------
 
-project = 'IPYDEMO'
+project = pathlib.Path(__file__).resolve().parent.parent.name
 copyright = '2020, Jean-Marc Andreoli'
 author = 'Jean-Marc Andreoli'
 
@@ -55,7 +55,7 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = 'python_docs_theme'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

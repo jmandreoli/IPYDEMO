@@ -14,7 +14,8 @@ We want to simulate the motion of a simple pendulum. The pivot of the pendulum i
 
 The following program implements the corresponding simulation.
 
-.. literalinclude:: ../demo/odesimu.py
+.. literalinclude:: mod_odesimu.py
+   :lines: 6-
    :language: python
    :tab-width: 2
 
@@ -34,7 +35,7 @@ Method **displayer** performs the following steps:
 
 Typical output:
 
-.. image:: ../demo/odesimu.gif
+.. image:: _resource/mod_odesimu.gif
    :scale: 50
 
 Available types and functions

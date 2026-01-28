@@ -61,18 +61,19 @@ The Sudoku rules impose 324 generic constraints (not independent), to which *con
     for g in all_constraints:
       for constr in g(X): M.add_constr(constr)
     t = perf_counter(); status = M.optimize(); elapsed += perf_counter()-t
-    if status is mip.OptimizationStatus.OPTIMAL:
-      grid = _extract_solution(X)
-      previous.append(grid)
-      yield grid,elapsed
-    elif status is mip.OptimizationStatus.INFEASIBLE: return
-    else: raise SolveError(status,elapsed)
+    match status:
+      case mip.OptimizationStatus.OPTIMAL:
+        grid = _extract_solution(X)
+        previous.append(grid)
+        yield grid,elapsed
+      case mip.OptimizationStatus.INFEASIBLE: return
+      case _: raise SolveError(status,elapsed)
 
 #==========================================================================
 class Sudoku:
   r"""
 Instances of this class are possibly partially filled Sudoku grids.
-The grid is a :class:`numpy:ndarray` of :class:`int` between -1 and N where N is a perfect square (9,16,25...).
+The grid is a :class:`numpy:ndarray` of :class:`int` between -1 and $N$-1 where $N$ is a perfect square (9,16,25...).
 
 :param grid: the grid or an integer, denoting the empty grid of that dimension (default 9)
 :param solved: time to solve (in ms)
@@ -125,29 +126,31 @@ Solves this instance. Returns a new instance whose cells are all filled.
     return Sudoku(grid,solved=elapsed,source=source,props=self.props)
 
 #--------------------------------------------------------------------------
-  @cached_property
-  def _repr_html(self):
+  _repr_html:str|None = None
+  def _repr_html_(self):
     r"""A html representation of the grid for IPython display."""
 #--------------------------------------------------------------------------
-    from lxml.html import builder as E, tostring
-    pos2tag = {-1:''}|{k:str(k+1) for k in range(self.N)}
-    FGBG = {q:f'color:{fg};background-color:{bg};' for q,fg,bg in ((False,'blue','white'),(True,'black','lightgray'))}
-    LW = {False:'1px',True:'4px'}
-    style_c = 'width:.5cm;height:.5cm;text-align:center;vertical-align:middle;border-style:solid;border-color:black;'
-    style_f = 'background-color:black;color:white;text-align:center;vertical-align:middle;font-size:xx-small;'
-    def style(i,j):
-      fgbg = FGBG[self.source[i,j]]; top,right,bottom,left = (LW[q%3==0] for q in (i,j+1,i+1,j))
-      return style_c+fgbg+f'border-width: {top} {right} {bottom} {left};'
-    table = E.TABLE(
-      E.TBODY(*(
-        E.TR(*(
-          E.TD(pos2tag[k],style=style(i,j)) for j,k in enumerate(r)
-        )) for i,r in enumerate(self.grid))
-      ),
-      E.TFOOT(E.TR(E.TD(str(self),colspan='9',style=style_f)))
-    )
-    return tostring(table,encoding='unicode')
-  def _repr_html_(self): return self._repr_html
+    if (r:=self._repr_html) is None:
+      from lxml.html import builder as E, tostring
+      pos2tag = {-1:''}|{k:str(k+1) for k in range(self.N)}
+      FGBG = {q:f'color:{fg};background-color:{bg};' for q,fg,bg in ((False,'blue','white'),(True,'black','lightgray'))}
+      LW = {False:'1px',True:'4px'}
+      style_c = 'width:.5cm;height:.5cm;text-align:center;vertical-align:middle;border-style:solid;border-color:black;'
+      style_f = 'background-color:black;color:white;text-align:center;vertical-align:middle;font-size:xx-small;'
+      def style(i,j):
+        fgbg = FGBG[self.source[i,j]]; top,right,bottom,left = (LW[q%3==0] for q in (i,j+1,i+1,j))
+        return style_c+fgbg+f'border-width: {top} {right} {bottom} {left};'
+      table = E.TABLE(
+        E.TBODY(*(
+          E.TR(*(
+            E.TD(pos2tag[k],style=style(i,j)) for j,k in enumerate(r)
+          )) for i,r in enumerate(self.grid))
+        ),
+        E.TFOOT(E.TR(E.TD(str(self),colspan='9',style=style_f))),
+        style='border-collapse:collapse;'
+      )
+      r = self._repr_html = tostring(table,encoding='unicode')
+    return r
 
 #--------------------------------------------------------------------------
   @staticmethod
