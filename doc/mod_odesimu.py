@@ -30,7 +30,6 @@ class Pendulum (ODESystem):
 
   def displayer(self,trajectory,ax,refsize=None): # required
     Q = self.analytics(trajectory.init_y)
-    ax.set_title(Q.name,fontsize='x-small')
     L = 1.05*self.L
     ax.set(xlim=(-L,L),ylim=(-L,L))
     ax.scatter((0.,),(0.,),c='k',marker='o',s=refsize)
